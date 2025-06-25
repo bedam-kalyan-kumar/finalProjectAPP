@@ -1,0 +1,865 @@
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    .stories-section {
+      display: flex;
+      overflow-x: auto;
+      padding: 15px 10px;
+      background-color: #ffffff;
+      border-bottom: 1px solid #ddd;
+      gap: 15px;
+      scrollbar-width: none; /* Hide scrollbar for Firefox */
+    }
+    .online-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background-color: limegreen;
+    border-radius: 50%;
+    margin-left: 8px;
+    margin-bottom: 2px;
+}
+    .stories-section::-webkit-scrollbar {
+      display: none; /* Hide scrollbar for Chrome/Safari */
+    }
+
+    .story-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 80px; /* Fixed width for each story */
+    }
+
+    .story-avatar {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      border: 2px solid #6a1b9a;
+      padding: 2px;
+      object-fit: cover;
+      margin-bottom: 5px;
+    }
+
+    .story-username {
+      font-size: 0.7em;
+      text-align: center;
+      color: #333;
+      max-width: 70px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Your Story Special Styling */
+    .your-story .story-avatar {
+      border: 2px dashed #6a1b9a;
+    }
+
+    .add-icon {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      background: #6a1b9a;
+      color: white;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      border: 2px solid white;
+    }
+
+    /* Story Modal - Improved Sizing */
+    #storyModal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    #storyModalContent {
+      width: 100%;
+      max-width: 400px;
+      height: 70vh;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .story-media {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .story-nav {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+    
+    .story-nav-area {
+      width: 50%;
+      height: 100%;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    
+    .story-progress {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      gap: 5px;
+      z-index: 10;
+    }
+    
+    .story-progress-bar {
+      height: 3px;
+      background: rgba(255,255,255,0.5);
+      flex-grow: 1;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    
+    .story-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: white;
+      transition: width linear;
+    }
+    /* Rest of your existing styles... */
+    .post {
+      background-color: #ffffff;
+      margin: 15px 0;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #k1 {
+      padding-right: 10px;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f2f5;
+      margin: 0 auto;
+      max-width: 550px;
+      overflow-x: hidden;
+      /* Prevents horizontal scrolling */
+      width: 100%;
+    }
+
+    /* Top Navigation Bar */
+    .top-nav {
+      width: 100%;
+      padding: 10px 0;
+      background-color: #ffffff;
+      border-bottom: 1px solid #ddd;
+      text-align: center;
+      font-size: 1.5em;
+      font-weight: bold;
+      color: #6a1b9a;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    /* Stories Section */
+    .stories-section {
+      display: flex;
+      overflow-x: auto;
+      padding: 10px;
+      background-color: #ffffff;
+      border-bottom: 1px solid #ddd;
+      gap: 10px;
+    }
+
+    .story {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .story img {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      border: 2px solid #6a1b9a;
+      margin-bottom: 5px;
+    }
+
+    .story .name {
+      font-size: 0.8em;
+      text-align: center;
+      color: #333;
+    }
+
+    /* Post Section */
+    .post {
+      background-color: #ffffff;
+      margin: 15px 0;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .post-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .post-header img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+
+    .post-header .username {
+      font-weight: bold;
+      color: #333;
+    }
+
+    .post-content {
+      margin: 10px 0;
+    }
+
+    .post-content img {
+      width: 500px;
+      /* Fixed width for images */
+      height: 350px;
+      /* Fixed height for images */
+      border-radius: 10px;
+      object-fit: cover;
+      padding-left: 25px;
+    }
+
+    .post-content video {
+      width: 600px;
+      /* Fixed width for videos */
+      height: 450px;
+      /* Fixed height for videos */
+      border-radius: 10px;
+      object-fit: cover;
+      padding-left: 15px;
+    }
+
+    /* Post actions styling with interactive elements */
+.post-actions {
+  display: flex;
+  justify-content:space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding: 12px 15px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.post-actions i {
+  font-size: 1.5em;
+  cursor: pointer;
+  transition: transform 0.3s, color 0.3s;
+  padding: 10px;
+  border-radius: 50%;
+}
+
+/* Interactive icon colors */
+.fas.fa-heart {
+  color: #dc3545;
+}
+
+.fas.fa-comment.comment-icon {
+  color: #6c757d;
+}
+
+.fas.fa-share.share-icon {
+  color: #17a2b8;
+}
+
+.post-actions i:hover {
+  transform: scale(1.15);
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.fas.fa-heart:hover {
+  color: #ff4757;
+}
+
+.fas.fa-comment.comment-icon:hover {
+  color: #495057;
+}
+
+.fas.fa-share.share-icon:hover {
+  color: #2c7a8b;
+}
+
+/* Active states for icons */
+.fas.fa-heart.active {
+  color: #ff3366;
+  animation: pulse 0.5s;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* Counts styling */
+.counts {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  color: #495057;
+  margin: 10px 0;
+  font-weight: 500;
+}
+
+[id^="like-count-"] {
+  color: #dc3545;
+}
+
+[id^="comment-count-"] {
+  color: #6c757d;
+}
+
+[id^="share-count-"] {
+  color: #17a2b8;
+}
+
+/* Comments Section */
+[id^="comment-section-"] {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 15px;
+  margin-top: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
+}
+
+[id^="comment-list-"] {
+  list-style: none;
+  padding-left: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 15px;
+}
+
+[id^="comment-list-"] li {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 3px solid #6c757d;
+  transition: all 0.2s ease;
+}
+
+[id^="comment-list-"] li:hover {
+  background: #e9ecef;
+  transform: translateX(3px);
+}
+
+/* Comment input area */
+[id^="comment-input-"] {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #ced4da;
+  color: #212529;
+  padding: 12px;
+  border-radius: 8px;
+  resize: none;
+  margin-bottom: 12px;
+  font-size: 0.95em;
+  transition: all 0.3s ease;
+}
+
+[id^="comment-input-"]:focus {
+  box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25);
+  outline: none;
+  border-color: #adb5bd;
+}
+
+[id^="comment-button-"] {
+  background: #6c757d;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+[id^="comment-button-"]:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+}
+
+[id^="comment-button-"]:active {
+  transform: translateY(1px);
+}
+
+/* See All Comments button */
+.show-comments-btn {
+  background: #6c757d;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.show-comments-btn:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+}
+
+.show-comments-btn:active {
+  transform: translateY(1px);
+}
+
+.show-comments-btn:before {
+  content: '↓';
+  margin-right: 8px;
+  transition: transform 0.3s;
+}
+
+.show-comments-btn:hover:before {
+  transform: translateY(3px);
+}
+
+/* Custom scrollbar for comments */
+[id^="comment-list-"]::-webkit-scrollbar {
+  width: 6px;
+}
+
+[id^="comment-list-"]::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+[id^="comment-list-"]::-webkit-scrollbar-thumb {
+  background: #adb5bd;
+  border-radius: 10px;
+}
+
+[id^="comment-list-"]::-webkit-scrollbar-thumb:hover {
+  background: #6c757d;
+}
+
+/* Add interaction indicators */
+.post-actions i {
+  position: relative;
+}
+
+.post-actions i:after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: currentColor;
+  transition: width 0.3s ease;
+  transform: translateX(-50%);
+}
+
+.post-actions i:hover:after {
+  width: 80%;
+}
+
+/* Ripple effect for buttons */
+.show-comments-btn, [id^="comment-button-"] {
+  position: relative;
+  overflow: hidden;
+}
+
+.show-comments-btn:after, [id^="comment-button-"]:after {
+  content: "";
+  background: rgba(255, 255, 255, 0.3);
+  display: block;
+  position: absolute;
+  border-radius: 50%;
+  padding-top: 240%;
+  padding-left: 240%;
+  margin-top: -120%;
+  margin-left: -120%;
+  opacity: 0;
+  transition: all 0.8s;
+}
+
+.show-comments-btn:active:after, [id^="comment-button-"]:active:after {
+  padding-top: 0;
+  padding-left: 0;
+  margin-top: 0;
+  margin-left: 0;
+  opacity: 1;
+  transition: 0s;
+}
+
+    /* Bottom Navigation Bar */
+    .menu {
+      width: calc(61.5% - 200px);
+      display: flex;
+      justify-content: space-evenly;
+      align-items: center;
+      background-color: #1a1a1a;
+      padding: 10px 0;
+      border-top: 1px solid #ddd;
+      position: fixed;
+      bottom: 0;
+      left: 345px;
+      right: 15px;
+      border-radius: 10px 10px 0 0;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+      border-radius: 50px;
+      animation: neonPulse 2s infinite alternate;
+    }
+
+    .menu-item {
+      color: #00ffff;
+      font-size: 1.2em;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: color 0.3s, transform 0.3s;
+    }
+
+    .menu-item:hover {
+      color: #d81b60;
+      transform: scale(1.1);
+    }
+
+    .menu-item i {
+      margin-bottom: 5px;
+    }
+
+    .liked {
+      color: #d81b60 !important;
+      transform: scale(1.2);
+      transition: all 0.3s ease-in-out;
+    }
+
+    /* Style for the "Show All Comments" button */
+    .show-all-comments-btn {
+      background-color: #6a1b9a;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.9em;
+      margin-left: 10px;
+    }
+
+    .show-all-comments-btn:hover {
+      background-color: #d81b60;
+    }
+
+    .follow-btn {
+      background: fuchsia;
+      height: 30px;
+      width: 90px;
+      border-radius: 50px;
+      border-color: white;
+      margin-left: 20px;
+    }
+
+    h2 {
+      color: red;
+      font-size: 15px;
+    }
+
+    video {
+      height: 300px;
+      width: 500px;
+    }
+
+    /* Update CSS for count display */
+.notification-dot {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    min-width: 18px;
+    height: 18px;
+    padding: 2px;
+    background-color: #ff0000;
+    color: white;
+    border-radius: 50%;
+    border: 2px solid white;
+    font-size: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.menu-item {
+    position: relative; /* Add this to make the dot position relative to the menu item */
+}
+#message-dot {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 10px;
+    height: 10px;
+    background-color: red;
+    border-radius: 50%;
+    z-index: 1000; /* Ensure it's above other elements */
+}
+
+.top-nav {
+    position: relative; /* Needed for absolute positioning of child */
+}
+
+/* Bottom Navigation - Added from second style */
+.bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 550px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 12px 0;
+      background-color: white;
+      border-top: 1px solid black;
+      z-index: 1000;
+      border-radius: 50px;
+    }
+    
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #262626;
+      text-decoration: none;
+      font-size: 0.8rem;
+    }
+    
+    .nav-item i {
+      font-size: 1.4rem;
+      margin-bottom: 4px;
+    }
+    
+    .nav-item.active {
+      /* color: #405DE6; */
+      color: red;
+    }
+
+/* Create Modal - Added from second style */
+.modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+    }
+    
+    .modal-content {
+      background: white;
+      margin: 3% auto;
+      padding: 25px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 450px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+      position: relative;
+      animation: fadeIn 0.3s ease-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .modal-title {
+      text-align: center;
+      font-size: 1.3rem;
+      margin-bottom: 20px;
+      color: #262626;
+    }
+    
+    .close {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      font-size: 1.5rem;
+      color: #8e8e8e;
+      cursor: pointer;
+    }
+    
+    .toggle-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .toggle-buttons label {
+      font-weight: 600;
+      color: #333;
+      cursor: pointer;
+      padding: 8px 16px;
+      border-radius: 20px;
+      transition: all 0.2s;
+    }
+    
+    .toggle-buttons input[type="radio"]:checked + label {
+      background: #405DE6;
+      color: white;
+    }
+    
+    .toggle-buttons input[type="radio"] {
+      display: none;
+    }
+    
+    .file-upload {
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .file-upload-label {
+      display: inline-block;
+      padding: 12px 24px;
+      background: #405DE6;
+      color: white;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .file-upload-label:hover {
+      background: #5851DB;
+    }
+    
+    .preview-box {
+      margin: 20px 0;
+      text-align: center;
+    }
+    
+    .preview-box img,
+    .preview-box video {
+      max-width: 100%;
+      max-height: 300px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .upload-btn {
+      width: 100%;
+      padding: 12px;
+      background: #405DE6;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .upload-btn:hover {
+      background: #5851DB;
+    }
+    
+    .upload-btn:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+    }
+
+/* Success Overlay - Added from second style */
+.success-overlay {
+      display: none;
+      position: fixed;
+      z-index: 99999;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(76, 175, 80, 0.2);
+      backdrop-filter: blur(5px);
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    
+    .checkmark-container {
+      text-align: center;
+      animation: popIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+    
+    @keyframes popIn {
+      0% { transform: scale(0); opacity: 0; }
+      80% { transform: scale(1.1); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    .checkmark-circle {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #4CAF50;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0 auto 20px;
+      box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+    }
+    
+    .checkmark {
+      width: 30px;
+      height: 50px;
+      border: solid white;
+      border-width: 0 4px 4px 0;
+      transform: rotate(45deg);
+    }
+    
+    .success-text {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: white;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }

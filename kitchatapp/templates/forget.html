@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Password - SPRINT</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Poppins", sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #1c1c1c;
+            color: white;
+        }
+
+        form {
+            background-color: #282828;
+            padding: 30px 40px;
+            border-radius: 15px;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.6), 0 0 20px rgba(0, 255, 255, 0.4);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        h2 {
+            font-size: 2rem;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 1rem;
+            margin-bottom: 8px;
+            color: #ddd;
+            text-align: left;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 90%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 1rem;
+            background: #1c1c1c;
+            color: white;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #00ffff;
+            box-shadow: 0 0 10px #00ffff;
+        }
+
+        button {
+            background-color: #00ffff;
+            color: #1c1c1c;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.3s ease;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #00cccc;
+            box-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+        }
+
+        p {
+            color: red;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        footer {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #ddd;
+        }
+
+        footer a {
+            color: #00ffff;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        @keyframes neon-glow {
+            0%, 100% {
+                box-shadow: 0 0 15px rgba(0, 255, 255, 0.6), 0 0 20px rgba(0, 255, 255, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(0, 255, 255, 0.6);
+            }
+        }
+
+        form:hover {
+            animation: neon-glow 1.5s infinite alternate;
+        }
+    </style>
+</head>
+<body>
+   <form method="POST">
+    {% csrf_token %}
+    {% if step == 'send_otp' %}
+        <h2>Reset Password</h2>
+        <label>Email:</label>
+        <input type="text" name="email" placeholder="Enter your email" required>
+        <input type="hidden" name="step" value="send_otp">
+        <button type="submit">Send OTP</button>
+
+    {% elif step == 'verify_otp' %}
+        <h2>Enter OTP</h2>
+        <label>OTP:</label>
+        <input type="text" name="otp" placeholder="Enter OTP" required>
+        <input type="hidden" name="step" value="verify_otp">
+        <button type="submit">Verify OTP</button>
+
+    {% elif step == 'reset_password' %}
+        <h2>Reset Password</h2>
+        <label>New Password:</label>
+        <input type="password" id="new_password" name="new_password" required>
+        <span onclick="togglePassword('new_password')" style="cursor:pointer;">👁</span>
+
+        <label>Confirm Password:</label>
+        <input type="password" id="confirm_password" name="confirm_password" required>
+        <span onclick="togglePassword('confirm_password')" style="cursor:pointer;">👁</span>
+
+        <input type="hidden" name="step" value="reset_password">
+        <button type="submit">Change Password</button>
+    {% endif %}
+
+    {% if error %}
+        <p style="color:red;">{{ error }}</p>
+    {% endif %}
+</form>
+
+<script>
+function togglePassword(id) {
+    var input = document.getElementById(id);
+    input.type = input.type === "password" ? "text" : "password";
+}
+</script>
+
+</body>
+</html>

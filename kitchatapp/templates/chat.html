@@ -1,0 +1,1796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    {% load humanize user_status %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with {{ recipient.username }}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'chat.css' %}">
+</head>
+<body>
+<div class="chat-container">
+    <div class="top-bar">
+        <div class="icon" onclick="goBack()"><i class="fas fa-arrow-left"></i></div>
+        <div class="title">
+            {{ recipient.username }}
+            {% if recipient|is_user_online %}
+                <span class="online-dot"></span>
+            {% else %}
+                <span style="font-size: 0.8em;">(Last seen {{ recipient.last_seen|naturaltime }})</span>
+            {% endif %}
+        </div>
+        <div>
+            <!-- Call buttons -->
+            <button class="call-btn" onclick="startVideoCall()"><i class="fas fa-video"></i></button>
+            <button class="call-btn" onclick="startAudioCall()"><i class="fas fa-phone"></i></button>
+            
+            <div class="chat-options-container">
+  <button class="menu-btn" onclick="toggleOptionsMenu(this)">
+    <i class="fas fa-ellipsis-v"></i>
+  </button>
+
+  <div class="chat-options-dropdown">
+    <button class="pin-btn" onclick="confirmPinChat()">
+      <i class="fas fa-thumbtack"></i>
+      <span>{% if is_pinned %}Unpin{% else %}Pin{% endif %}</span>
+    </button>
+    <button class="archive-btn" onclick="confirmArchiveChat()">
+      <i class="fas fa-archive"></i>
+      <span>{% if is_archived %}Unarchive{% else %}Archive{% endif %}</span>
+    </button>
+    <button class="clear-btn" onclick="confirmClearChat()">
+      <i class="fas fa-trash"></i>
+      <span>Clear</span>
+    </button>
+  </div>
+</div>
+
+        </div>
+    </div>
+    
+    <!-- Call modal -->
+    <div id="call-modal" class="modal">
+        <div class="modal-content call-modal-content">
+            <div class="call-header">
+                <h3 id="call-title">Calling {{ recipient.username }}</h3>
+                <div class="call-duration" id="call-duration">00:00</div>
+            </div>
+            
+            <div class="video-container">
+                <video id="remote-video" autoplay playsinline></video>
+                <video id="local-video" autoplay playsinline muted></video>
+            </div>
+            
+            <div class="call-controls">
+                <button class="call-control-btn" onclick="toggleMute()" id="mute-btn">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <button class="call-control-btn" onclick="toggleVideo()" id="video-btn">
+                    <i class="fas fa-video"></i>
+                </button>
+                <button class="call-control-btn end-call-btn" onclick="endCall()">
+                    <i class="fas fa-phone-slash"></i>
+                </button>
+                <button class="call-control-btn" onclick="toggleFullscreen()">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+            
+            <div class="call-status" id="call-status">Connecting...</div>
+        </div>
+    </div>
+
+    <div id="undo-banner" class="undo-banner">
+        Chat cleared. <button onclick="undoClear()">Undo</button>
+    </div>
+
+    <div class="messages-container" id="messages-container">
+        {% for message in messages %}
+        <div class="message {% if message.sender_id == current_user.id %}sent{% else %}received{% endif %}"
+             id="message-{{ message.id }}"
+             data-message-id="{{ message.id }}"
+             data-original-content="{{ message.content|escapejs }}">
+            <img src="{{ message.sender_profile_pic }}" class="message-profile-pic" alt="{{ message.sender.username }}" />
+            <div class="message-content {% if message.related_story %}story-message{% endif %} {% if message.is_reaction %}reaction-message{% endif %}">
+                {% if message.reply_to %}
+                <div class="reply-to">
+                    Replying to: {{ message.reply_to.content|truncatechars:30 }}
+                </div>
+                {% endif %}
+                
+                {% if message.related_story %}
+                    <div class="story-preview">
+                        <a href="{% url 'view_story' message.related_story.user.username %}" class="story-preview-link">
+                            <i class="fas fa-book-open"></i> View story from {{ message.related_story.created_at|date:"M d, Y" }}
+                        </a>
+                    </div>
+                {% endif %}
+                
+                <div class="message-text">
+                    {% if message.is_reaction %}
+                        <span class="reaction-emoji">
+                            {% if message.reaction_type == 'like' %}👍
+                            {% elif message.reaction_type == 'love' %}❤️
+                            {% elif message.reaction_type == 'haha' %}😂
+                            {% elif message.reaction_type == 'wow' %}😮
+                            {% elif message.reaction_type == 'sad' %}😢
+                            {% elif message.reaction_type == 'angry' %}😠
+                            {% endif %}
+                        </span>
+                    {% endif %}
+                    {{ message.content }}
+                </div>
+                
+                {% if message.file %}
+                    {% if message.file.url|lower|slice:'-4:' == '.mp4' or message.file.url|lower|slice:'-5:' == '.webm' %}
+                        <video controls width="250"><source src="{{ message.file.url }}" type="video/mp4"></video>
+                    {% else %}
+                        <img src="{{ message.file.url }}" style="max-width: 100%; border-radius: 10px;" alt="Attachment">
+                    {% endif %}
+                {% endif %}
+                
+                <div class="message-time">{{ message.timestamp|date:"H:i, M d" }}</div>
+                {% if message.sender_id == current_user.id %}
+                    <div class="message-seen">
+                        {% if message.is_seen %}<span class="read-receipt seen"><i class="fas fa-check-double"></i> Seen</span>
+                        {% elif message.is_delivered %}<span class="read-receipt delivered"><i class="fas fa-check"></i> Delivered</span>
+                        {% else %}<span class="read-receipt sent"><i class="fas fa-check"></i> Sent</span>{% endif %}
+                    </div>
+                    <div class="dots-menu" onclick="toggleMessageDropdown({{ message.id }}, event)">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </div>
+                    <div class="message-dropdown" id="message-dropdown-{{ message.id }}" style="color: black;">
+                        <div class="message-dropdown-item" onclick="editMessage({{ message.id }})">
+                            <i class="fas fa-edit"></i> Edit
+                        </div>
+                        <div class="message-dropdown-item" onclick="confirmDeleteMessage({{ message.id }})">
+                            <i class="fas fa-trash-alt"></i> Delete
+                        </div>
+                        <div class="message-dropdown-item" onclick="replyToMessage({{ message.id }})">
+                            <i class="fas fa-reply"></i> Reply
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="reply-indicator" id="reply-indicator-{{ message.id }}"></div>
+        </div>
+        {% empty %}
+            <div class="empty-state">
+                <i class="fas fa-comments"></i>
+                <p>No messages yet. Start the conversation!</p>
+            </div>
+        {% endfor %}
+        <div id="typing-indicator" class="typing-indicator">{{ recipient.username }} is typing...</div>
+    </div>
+
+    <div class="quick-scroll-buttons" style="gap: 410px; margin-right: 380px; margin-bottom: 30px; ">
+        <button onclick="scrollToOldest(true)" id="scroll-to-top"><i class="fas fa-chevron-up"></i></button>
+        <button onclick="scrollToLatest(true)" id="scroll-to-bottom"><i class="fas fa-chevron-down"></i></button>
+    </div>
+
+    <div class="input-container">
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="text" name="message" placeholder="Type a message...">
+            <div class="file-upload">
+                <input type="file" name="file" id="file" accept="image/*, video/*">
+                <label for="file"><i class="fas fa-paperclip"></i></label>
+            </div>
+            <button type="submit">Send</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modals -->
+<div id="clear-chat-modal" class="modal">
+    <div class="modal-content">
+        <h3>Clear Chat</h3>
+        <p>Are you sure you want to clear all messages in this chat?</p>
+        <div class="modal-buttons">
+            <button class="cancel" onclick="closeModal('clear-chat-modal')">Cancel</button>
+            <button class="confirm" onclick="clearAllChat()">Clear</button>
+        </div>
+    </div>
+</div>
+
+<div id="pin-chat-modal" class="modal">
+    <div class="modal-content">
+        <h3>{% if is_pinned %}Unpin{% else %}Pin{% endif %} Chat</h3>
+        <p>Are you sure you want to {% if is_pinned %}unpin{% else %}pin{% endif %} this chat?</p>
+        <div class="modal-buttons">
+            <button class="cancel" onclick="closeModal('pin-chat-modal')">Cancel</button>
+            <button class="confirm" onclick="togglePinChat()">{% if is_pinned %}Unpin{% else %}Pin{% endif %}</button>
+        </div>
+    </div>
+</div>
+
+<div id="archive-chat-modal" class="modal">
+    <div class="modal-content">
+        <h3>{% if is_archived %}Unarchive{% else %}Archive{% endif %} Chat</h3>
+        <p>Are you sure you want to {% if is_archived %}unarchive{% else %}archive{% endif %} this chat?</p>
+        <div class="modal-buttons">
+            <button class="cancel" onclick="closeModal('archive-chat-modal')">Cancel</button>
+            <button class="confirm" onclick="toggleArchiveChat()">{% if is_archived %}Unarchive{% else %}Archive{% endif %}</button>
+        </div>
+    </div>
+    
+</div>
+{% if message.file %}
+    {% if message.file.url|lower|slice:'-4:' == '.mp4' or message.file.url|lower|slice:'-5:' == '.webm' %}
+        <video controls width="250">
+            <source src="{{ message.file.url }}" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    {% else %}
+        <img src="{{ message.file.url }}" style="max-width: 100%; border-radius: 10px;" alt="Attachment">
+    {% endif %}
+{% endif %}
+<script>
+function toggleOptionsMenu(button) {
+    const dropdown = button.nextElementSibling;
+    const allDropdowns = document.querySelectorAll('.chat-options-dropdown');
+    
+    // Close all other dropdowns
+    allDropdowns.forEach(d => {
+        if (d !== dropdown) d.style.display = 'none';
+    });
+
+    // Toggle current dropdown
+    dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
+}
+
+// Optional: Hide dropdown when clicking outside
+document.addEventListener('click', function (e) {
+    if (!e.target.closest('.chat-options-container')) {
+        document.querySelectorAll('.chat-options-dropdown').forEach(d => {
+            d.style.display = 'none';
+        });
+    }
+});
+</script>
+
+
+<script>
+    
+    let localStream;
+    const recipient = {
+    id: {{ recipient.id }},
+    username: '{{ recipient.username|escapejs }}'
+};
+    if (!recipient || !recipient.id) {
+    console.error('Recipient data not available');
+    // Disable call buttons or show error
+    document.querySelectorAll('.call-btn').forEach(btn => {
+        btn.disabled = true;
+        btn.title = 'Recipient information not available';
+    });
+}
+
+
+
+    // WebRTC Implementation
+
+let remoteStream;
+let peerConnection;
+let callStartTime;
+let callDurationInterval;
+let isCaller = false;
+let currentCallType = null; // 'audio' or 'video'
+let isMuted = false;
+let isVideoOff = false;
+ // Declare localStream outside the function scope
+
+ function startVideoCall() {
+    currentCallType = 'video';  // Remove 'let' to update outer variable
+    initiateCall();
+}
+
+function startAudioCall() {
+    currentCallType = 'audio';  // Remove 'let' to update outer variable
+    initiateCall();
+}
+
+function endCall() {
+    // Stop ringtone if playing
+    // stopRingtone();
+    
+    // Stop all media tracks
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    if (remoteStream) {
+        remoteStream.getTracks().forEach(track => track.stop());
+        remoteStream = null;
+    }
+    
+    // Close peer connection
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    
+    // Clear timer
+    clearInterval(callDurationInterval);
+    callDurationInterval = null;
+    
+    // Send call ended notification if we were in a call
+    if (incomingOffer || isCaller) {
+        const recipient = isCaller ? recipient.username : incomingOffer.sender;
+        callSocket.send(JSON.stringify({
+            type: 'call_ended',
+            to: recipient
+        }));
+    }
+    
+    // Reset variables
+    incomingOffer = null;
+    isCaller = false;
+    currentCallType = null;
+    
+    // Close modal
+    closeModal('call-modal');
+    
+    // Reset video elements
+    document.getElementById('local-video').srcObject = null;
+    document.getElementById('remote-video').srcObject = null;
+    document.getElementById('local-video').style.display = 'block';
+}
+  // Clear timer
+ 
+// STUN servers configuration (free public servers)
+const iceServers = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' }
+    ]
+};
+const currentUser = {
+    id: {{ request.user.id }},
+    username: "{{ request.user.username|escapejs }}"
+};
+// Initialize WebSocket for signaling
+// Initialize WebSocket for signaling
+let callSocket;
+
+function connectCallSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    callSocket = new WebSocket(`${protocol}${window.location.host}/ws/call/${currentUser.id}/`);
+    
+    callSocket.onopen = () => console.log("WebSocket connected");
+    callSocket.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+    console.log("Message received:", data);
+
+    if (data.type === "call_offer") {
+        console.log("Incoming call detected");
+        handleIncomingCall(data);
+    }}
+};
+
+
+
+async function initiateCall() {
+    try {
+        isCaller = true;
+        openModal('call-modal');
+        document.getElementById('call-title').textContent = `Calling ${recipient.username}`;
+        document.getElementById('call-status').textContent = 'Starting call...';
+        
+        // Get local media
+        const constraints = {
+            audio: true,
+            video: currentCallType === 'video' ? true : false
+        };
+        
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        // Display local video
+        const localVideo = document.getElementById('local-video');
+        localVideo.srcObject = localStream;
+        
+        if (currentCallType === 'audio') {
+            localVideo.style.display = 'none';
+        }
+        
+        // Create peer connection
+        createPeerConnection();
+        
+        // Add local stream to connection
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+        
+        // Create and send offer
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        
+        // Send offer via signaling server
+        callSocket.send(JSON.stringify({
+    type: 'call_offer',
+    offer: offer,
+    call_type: currentCallType,
+    sender: currentUser.username,
+    target_id: recipient.id  // 👈 Add this!
+}));
+
+        
+        document.getElementById('call-status').textContent = 'Waiting for answer...';
+        
+        // Start call timeout
+        setTimeout(() => {
+            if (peerConnection.connectionState !== 'connected') {
+                endCall();
+                showNotification('Call timed out', 'error');
+            }
+        }, 300000); // 30 seconds timeout
+        
+    } catch (error) {
+        console.error('Error starting call:', error);
+        endCall();
+        showNotification('Failed to start call: ' + error.message, 'error');
+    }
+}
+
+let incomingOffer = null;
+
+function handleIncomingCall(data) {
+    console.log('Incoming call from:', data.sender);
+    
+    // Store incoming call data
+    incomingOffer = data;
+    currentCallType = data.call_type;
+    
+    // Show incoming call UI
+    openModal('call-modal');
+    document.getElementById('call-title').textContent = `Incoming ${data.call_type} call from ${data.sender}`;
+    document.getElementById('call-status').textContent = 'Incoming call...';
+    
+    // Create accept and reject buttons
+    const callControls = document.querySelector('.call-controls');
+    callControls.innerHTML = `
+        <button class="call-control-btn accept-btn" onclick="acceptCall()">
+            <i class="fas fa-phone"></i> Accept
+        </button>
+        <button class="call-control-btn reject-btn" onclick="rejectCall()">
+            <i class="fas fa-phone-slash"></i> Reject
+        </button>
+    `;
+    
+    // Play ringtone
+    // playRingtone();
+}
+
+// Play ringtone for incoming calls
+function playRingtone() {
+    // Create audio element for ringtone
+    const ringtone = new Audio('C:\Users\pavan\kalyan\myapp\finalproject\static\sounds\ringtone.mp3');
+    ringtone.loop = true;
+    ringtone.id = 'ringtone';
+    ringtone.play().catch(e => console.error('Error playing ringtone:', e));
+    
+    // Store reference to stop later
+    window.currentRingtone = ringtone;
+}
+
+// Stop ringtone
+function stopRingtone() {
+    if (window.currentRingtone) {
+        window.currentRingtone.pause();
+        window.currentRingtone.currentTime = 0;
+        window.currentRingtone = null;
+    }
+}
+
+async function acceptCall() {
+    if (!incomingOffer) {
+        console.error('No incoming offer to accept');
+        return;
+    }
+    
+    try {
+        // Stop ringtone
+        stopRingtone();
+        
+        isCaller = false;
+        document.getElementById('call-title').textContent = `In call with ${incomingOffer.sender}`;
+        document.getElementById('call-status').textContent = 'Connecting...';
+        
+        // Get local media
+        const constraints = {
+            audio: true,
+            video: currentCallType === 'video' ? true : false
+        };
+        
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        // Display local video
+        const localVideo = document.getElementById('local-video');
+        localVideo.srcObject = localStream;
+        
+        if (currentCallType === 'audio') {
+            localVideo.style.display = 'none';
+        } else {
+            localVideo.style.display = 'block';
+        }
+        
+        // Create peer connection
+        createPeerConnection();
+        
+        // Add local stream to connection
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+        
+        // Set remote description from the offer
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingOffer.offer));
+        
+        // Create and send answer
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        
+        // Send answer via signaling server
+        callSocket.send(JSON.stringify({
+            type: 'call_answer',
+            answer: answer,
+            to: incomingOffer.sender
+        }));
+        
+        // Show call controls
+        setupCallControls();
+        
+    } catch (error) {
+        console.error('Error accepting call:', error);
+        endCall();
+        showNotification('Failed to accept call: ' + error.message, 'error');
+    }
+}
+
+function rejectCall() {
+    if (!incomingOffer) {
+        console.error('No incoming offer to reject');
+        return;
+    }
+    
+    // Stop ringtone
+    // stopRingtone();
+    
+    callSocket.send(JSON.stringify({
+        type: 'call_rejected',
+        to: incomingOffer.sender
+    }));
+    
+    // Reset and close
+    incomingOffer = null;
+    closeModal('call-modal');
+}
+
+function handleCallAnswer(data) {
+    if (peerConnection) {
+        peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
+            .then(() => {
+                document.getElementById('call-status').textContent = 'Call connected';
+                startCallTimer();
+            })
+            .catch(error => {
+                console.error('Error setting remote description:', error);
+                endCall();
+            });
+    }
+}
+
+function handleNewICECandidate(data) {
+    if (peerConnection) {
+        peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate))
+            .catch(error => {
+                console.error('Error adding ICE candidate:', error);
+            });
+    }
+}
+
+function handleCallRejected(data) {
+    endCall();
+    showNotification('Call was rejected', 'info');
+}
+
+function handleCallEnded(data) {
+    endCall();
+    showNotification('Call ended', 'info');
+}
+
+function createPeerConnection() {
+    peerConnection = new RTCPeerConnection(iceServers);
+    
+    // Handle ICE candidates
+    peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+            callSocket.send(JSON.stringify({
+                type: 'ice_candidate',
+                candidate: event.candidate,
+                to: '{{ recipient.username }}'
+            }));
+        }
+    };
+    
+    // Handle remote stream
+    peerConnection.ontrack = event => {
+        const remoteVideo = document.getElementById('remote-video');
+        if (!remoteVideo.srcObject) {
+            remoteVideo.srcObject = event.streams[0];
+            remoteStream = event.streams[0];
+            document.getElementById('call-status').textContent = 'Call connected';
+            startCallTimer();
+        }
+    };
+    
+    // Handle connection state changes
+    peerConnection.onconnectionstatechange = event => {
+        switch(peerConnection.connectionState) {
+            case 'connected':
+                document.getElementById('call-status').textContent = 'Call connected';
+                break;
+            case 'disconnected':
+            case 'failed':
+                endCall();
+                showNotification('Call disconnected', 'error');
+                break;
+            case 'closed':
+                endCall();
+                break;
+        }
+    };
+}
+window.addEventListener('load', () => {
+    connectCallSocket();
+});
+
+function setupCallControls() {
+    const callControls = document.querySelector('.call-controls');
+    callControls.innerHTML = `
+        <button class="call-control-btn" onclick="toggleMute()" id="mute-btn">
+            <i class="fas fa-microphone"></i>
+        </button>
+        <button class="call-control-btn" onclick="toggleVideo()" id="video-btn">
+            <i class="fas fa-video"></i>
+        </button>
+        <button class="call-control-btn end-call-btn" onclick="endCall()">
+            <i class="fas fa-phone-slash"></i>
+        </button>
+        <button class="call-control-btn" onclick="toggleFullscreen()">
+            <i class="fas fa-expand"></i>
+        </button>
+    `;
+}
+
+function toggleMute() {
+    if (localStream) {
+        const audioTracks = localStream.getAudioTracks();
+        audioTracks.forEach(track => {
+            track.enabled = !track.enabled;
+        });
+        
+        isMuted = !isMuted;
+        const muteBtn = document.getElementById('mute-btn');
+        muteBtn.innerHTML = `<i class="fas fa-microphone${isMuted ? '-slash' : ''}"></i>`;
+        muteBtn.style.background = isMuted ? '#e74c3c' : '#333';
+    }
+}
+
+function toggleVideo() {
+    if (localStream && currentCallType === 'video') {
+        const videoTracks = localStream.getVideoTracks();
+        videoTracks.forEach(track => {
+            track.enabled = !track.enabled;
+        });
+        
+        isVideoOff = !isVideoOff;
+        const videoBtn = document.getElementById('video-btn');
+        videoBtn.innerHTML = `<i class="fas fa-video${isVideoOff ? '-slash' : ''}"></i>`;
+        videoBtn.style.background = isVideoOff ? '#e74c3c' : '#333';
+        
+        const localVideo = document.getElementById('local-video');
+        localVideo.style.display = isVideoOff ? 'none' : 'block';
+    }
+}
+
+function toggleFullscreen() {
+    const videoContainer = document.querySelector('.video-container');
+    if (!document.fullscreenElement) {
+        videoContainer.requestFullscreen().catch(err => {
+            console.error('Error attempting to enable fullscreen:', err);
+        });
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+function startCallTimer() {
+    callStartTime = new Date();
+    clearInterval(callDurationInterval);
+    callDurationInterval = setInterval(updateCallDuration, 1000);
+}
+
+function updateCallDuration() {
+    const now = new Date();
+    const duration = Math.floor((now - callStartTime) / 1000);
+    const minutes = Math.floor(duration / 60).toString().padStart(2, '0');
+    const seconds = (duration % 60).toString().padStart(2, '0');
+    document.getElementById('call-duration').textContent = `${minutes}:${seconds}`;
+}
+
+function endCall() {
+    // Stop all media tracks
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+    }
+    if (remoteStream) {
+        remoteStream.getTracks().forEach(track => track.stop());
+    }
+    
+    // Close peer connection
+    if (peerConnection) {
+        peerConnection.close();
+    }
+    
+    // Clear timer
+    clearInterval(callDurationInterval);
+    
+    // Send call ended notification if we were in a call
+    if (peerConnection && (peerConnection.connectionState === 'connected' || isCaller)) {
+        callSocket.send(JSON.stringify({
+            type: 'call_ended',
+            to: '{{ recipient.username }}'
+        }));
+    }
+    
+    // Reset variables
+    localStream = null;
+    remoteStream = null;
+    peerConnection = null;
+    isCaller = false;
+    currentCallType = null;
+    
+    // Close modal
+    closeModal('call-modal');
+    
+    // Reset video elements
+    document.getElementById('local-video').srcObject = null;
+    document.getElementById('remote-video').srcObject = null;
+    document.getElementById('local-video').style.display = 'block';
+}
+
+// Initialize call socket when page loads
+connectCallSocket();
+
+
+
+
+const messagesContainer = document.getElementById("messages-container");
+    const scrollToTopButton = document.getElementById("scroll-to-top");
+    const scrollToBottomButton = document.getElementById("scroll-to-bottom");
+    const messageInput = document.querySelector('#message-input');
+    let startX = null;
+    let currentMessage = null;
+    let replyingToMessageId = null;
+
+    // Initialize on page load
+    window.onload = function () {
+        scrollToLatest(true);
+        toggleScrollButtonsVisibility();
+    }
+
+    function goBack() {
+        window.location.href = '/messages/';
+    }
+
+    function toggleMessageDropdown(messageId, event) {
+        if (event) {
+            event.stopPropagation();
+        }
+        
+        const dropdown = document.getElementById(`message-dropdown-${messageId}`);
+        const allDropdowns = document.querySelectorAll('.message-dropdown');
+        
+        allDropdowns.forEach(d => {
+            if (d !== dropdown) {
+                d.classList.remove('active');
+            }
+        });
+        
+        dropdown.classList.toggle('active');
+    }
+
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.dots-menu') && !e.target.closest('.message-dropdown')) {
+            document.querySelectorAll('.message-dropdown').forEach(d => {
+                d.classList.remove('active');
+            });
+        }
+    });
+
+    function confirmDeleteMessage(messageId) {
+        if (confirm("Are you sure you want to delete this message?")) {
+            deleteMessage(messageId);
+        }
+        
+        // Close dropdown
+        document.getElementById(`message-dropdown-${messageId}`).classList.remove('active');
+    }
+
+    function deleteMessage(messageId) {
+        fetch(`/delete_message/${messageId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        }).then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById(`message-${messageId}`).remove();
+                    showNotification("Message deleted", "success");
+                } else {
+                    showNotification("Failed to delete message", "error");
+                }
+            });
+    }
+
+    function editMessage(messageId) {
+        const messageDiv = document.getElementById(`message-${messageId}`);
+        const messageContentDiv = messageDiv.querySelector('.message-content');
+        const messageTextDiv = messageContentDiv.querySelector('.message-text');
+        const currentText = messageTextDiv.textContent.trim();
+        
+        // Store original content for cancel action
+        messageDiv.setAttribute('data-original-content', currentText);
+        
+        // Replace text with edit input
+        messageTextDiv.innerHTML = `
+            <div class="edit-box">
+                <input type="text" id="edit-input-${messageId}" value="${currentText}">
+                <button onclick="saveEdit(${messageId})">Save</button>
+                <button onclick="cancelEdit(${messageId})">Cancel</button>
+            </div>
+        `;
+        
+        // Focus input and position cursor at the end
+        const input = document.getElementById(`edit-input-${messageId}`);
+        input.focus();
+        input.selectionStart = input.value.length;
+        
+        // Close dropdown
+        document.getElementById(`message-dropdown-${messageId}`).classList.remove('active');
+    }
+
+    function cancelEdit(messageId) {
+        const messageDiv = document.getElementById(`message-${messageId}`);
+        const messageContentDiv = messageDiv.querySelector('.message-content');
+        const messageTextDiv = messageContentDiv.querySelector('.message-text');
+        
+        // Restore original content
+        messageTextDiv.innerHTML = messageDiv.getAttribute('data-original-content');
+    }
+
+    function saveEdit(messageId) {
+        const newContent = document.getElementById(`edit-input-${messageId}`).value;
+        if (!newContent.trim()) {
+            showNotification("Message cannot be empty", "error");
+            return;
+        }
+        
+        fetch(`/edit_message/${messageId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content: newContent })
+        }).then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const messageDiv = document.getElementById(`message-${messageId}`);
+                    const messageContentDiv = messageDiv.querySelector('.message-content');
+                    const messageTextDiv = messageContentDiv.querySelector('.message-text');
+                    
+                    // Update with new content
+                    messageTextDiv.innerHTML = newContent;
+                    showNotification("Message updated", "success");
+                } else {
+                    showNotification("Failed to edit message", "error");
+                }
+            });
+    }
+
+    function replyToMessage(messageId) {
+        const messageDiv = document.getElementById(`message-${messageId}`);
+        const messageContent = messageDiv.querySelector('.message-text').textContent.trim();
+        
+        // Set replying state
+        replyingToMessageId = messageId;
+        
+        // Show visual indicator
+        const replyPreview = document.createElement('div');
+        replyPreview.id = 'reply-preview';
+        replyPreview.className = 'reply-preview';
+        replyPreview.innerHTML = `
+            <div class="reply-preview-content">
+                <i class="fas fa-reply"></i>
+                <span>Replying to: ${messageContent.substring(0, 30)}${messageContent.length > 30 ? '...' : ''}</span>
+            </div>
+            <button onclick="cancelReply()" class="reply-cancel-btn">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        
+        // Insert before the form
+        const inputContainer = document.querySelector('.input-container');
+        if (document.getElementById('reply-preview')) {
+            inputContainer.removeChild(document.getElementById('reply-preview'));
+        }
+        inputContainer.insertBefore(replyPreview, inputContainer.querySelector('form'));
+        
+        // Focus on the input
+        messageInput.focus();
+        
+        // Close dropdown
+        document.getElementById(`message-dropdown-${messageId}`).classList.remove('active');
+    }
+
+    function cancelReply() {
+        replyingToMessageId = null;
+        const replyPreview = document.getElementById('reply-preview');
+        if (replyPreview) {
+            replyPreview.remove();
+        }
+    }
+    function confirmClearChat() {
+        openModal('clear-chat-modal');
+    }
+
+    function confirmPinChat() {
+        openModal('pin-chat-modal');
+    }
+
+    function confirmArchiveChat() {
+        openModal('archive-chat-modal');
+    }
+
+    function openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.style.display = 'flex';
+    }
+
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.style.display = 'none';
+    }
+
+    function clearAllChat() {
+        fetch(`/clear_chat/{{ recipient.id }}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        }).then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    messagesContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-comments"></i>
+                            <p>No messages yet. Start the conversation!</p>
+                        </div>
+                    `;
+                    document.getElementById('undo-banner').style.display = 'block';
+                    closeModal('clear-chat-modal');
+                    showNotification("Chat cleared successfully", "success");
+                } else {
+                    showNotification("Failed to clear chat", "error");
+                }
+            });
+    }
+
+    function undoClear() {
+        fetch(`/undo_clear_chat/{{ recipient.id }}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        }).then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.reload();
+                } else {
+                    showNotification("Failed to undo", "error");
+                }
+            });
+    }
+
+    function togglePinChat() {
+        fetch(`/pin_chat/{{ recipient.id }}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        }).then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const pinButton = document.querySelector('.pin-btn');
+                    const pinIcon = pinButton.querySelector('i');
+                    const pinText = pinButton.querySelector('span');
+                    
+                    if (data.is_pinned) {
+                        pinIcon.className = 'fas fa-thumbtack';
+                        pinText.textContent = 'Unpin';
+                        showNotification("Chat pinned successfully", "success");
+                    } else {
+                        pinIcon.className = 'fas fa-thumbtack';
+                        pinText.textContent = 'Pin';
+                        showNotification("Chat unpinned successfully", "success");
+                    }
+                    
+                    closeModal('pin-chat-modal');
+                } else {
+                    showNotification("Failed to update pin status", "error");
+                }
+            });
+    }
+
+    function toggleArchiveChat() {
+        fetch(`/archive_chat/{{ recipient.id }}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        }).then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const archiveButton = document.querySelector('.archive-btn');
+                    const archiveIcon = archiveButton.querySelector('i');
+                    const archiveText = archiveButton.querySelector('span');
+                    
+                    if (data.is_archived) {
+                        archiveIcon.className = 'fas fa-box-open';
+                        archiveText.textContent = 'Unarchive';
+                        showNotification("Chat archived successfully", "success");
+                        
+                        // Optional: Redirect to archive after short delay
+                        setTimeout(() => {
+                            window.location.href = '/messages/archive/';
+                        }, 1500);
+                    } else {
+                        archiveIcon.className = 'fas fa-archive';
+                        archiveText.textContent = 'Archive';
+                        showNotification("Chat unarchived successfully", "success");
+                    }
+                    
+                    closeModal('archive-chat-modal');
+                } else {
+                    showNotification("Failed to update archive status", "error");
+                }
+            });
+    }
+
+    function scrollToLatest(smooth = false) {
+        messagesContainer.scrollTo({
+            top: messagesContainer.scrollHeight,
+            behavior: smooth ? 'smooth' : 'instant'
+        });
+        toggleScrollButtonsVisibility();
+    }
+
+    function scrollToOldest(smooth = false) {
+        messagesContainer.scrollTo({
+            top: 0,
+            behavior: smooth ? 'smooth' : 'instant'
+        });
+        toggleScrollButtonsVisibility();
+    }
+
+    function toggleScrollButtonsVisibility() {
+        // Show top button if not at the top
+        if (messagesContainer.scrollTop > 100) {
+            scrollToTopButton.classList.add('visible');
+        } else {
+            scrollToTopButton.classList.remove('visible');
+        }
+
+        // Show bottom button if not at the bottom
+        const scrollDiff = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
+        if (scrollDiff > 100) {
+            scrollToBottomButton.classList.add('visible');
+        } else {
+            scrollToBottomButton.classList.remove('visible');
+        }
+    }
+
+    messagesContainer.addEventListener('scroll', toggleScrollButtonsVisibility);
+
+    // Swipe to reply functionality
+    messagesContainer.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+            startX = e.touches[0].clientX;
+            currentMessage = e.target.closest('.message');
+        }
+    });
+
+    messagesContainer.addEventListener('touchmove', (e) => {
+        if (!currentMessage || startX === null || e.touches.length !== 1) return;
+
+        const diffX = startX - e.touches[0].clientX;
+        const messageId = currentMessage.getAttribute('data-message-id');
+        
+        // If swiped right to left (positive diffX)
+        if (diffX > 50) {
+            // Add animation class
+            currentMessage.classList.add('swiped');
+            // Show reply indicator
+            document.getElementById(`reply-indicator-${messageId}`).style.display = 'block';
+        }
+    });
+
+    messagesContainer.addEventListener('touchend', (e) => {
+        if (!currentMessage) return;
+        
+        const diffX = startX - e.changedTouches[0].clientX;
+        const messageId = currentMessage.getAttribute('data-message-id');
+        
+        if (diffX > 50) {
+            // If swiped enough, trigger reply action
+            replyToMessage(messageId);
+        }
+        
+        // Reset swipe state after short delay
+        setTimeout(() => {
+            currentMessage.classList.remove('swiped');
+            document.getElementById(`reply-indicator-${messageId}`).style.display = 'none';
+        }, 300);
+        
+        startX = null;
+        currentMessage = null;
+    });
+
+    // Form submission handler
+    document.getElementById('message-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const messageContent = messageInput.value.trim();
+        
+        if (!messageContent && !document.getElementById('file').files[0]) {
+            return; // Don't send empty messages
+        }
+        
+        const formData = new FormData(this);
+        
+        // Add reply-to information if applicable
+        if (replyingToMessageId) {
+            formData.append('reply_to', replyingToMessageId);
+        }
+        
+        fetch('/send_message/{{ recipient.id }}/', {
+            method: 'POST',
+            body: formData
+        }).then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Add message to UI
+                    const newMessage = document.createElement('div');
+                    newMessage.className = 'message sent';
+                    newMessage.id = `message-${data.message_id}`;
+                    newMessage.setAttribute('data-message-id', data.message_id);
+                    newMessage.setAttribute('data-original-content', messageContent);
+                    
+                    let replyHtml = '';
+                    if (data.reply_info) {
+                        replyHtml = `
+                            <div class="reply-to">
+                                Replying to: ${data.reply_info.content}
+                            </div>
+                        `;
+                    }
+                    
+                    let fileHtml = '';
+                    if (data.file_url) {
+                        if (data.file_url.toLowerCase().endsWith('.mp4') || data.file_url.toLowerCase().endsWith('.webm')) {
+                            fileHtml = `<video controls width="250"><source src="${data.file_url}" type="video/mp4"></video>`;
+                        } else {
+                            fileHtml = `<img src="${data.file_url}" style="max-width: 100%; border-radius: 10px;" alt="Attachment">`;
+                        }
+                    }
+                    
+                    newMessage.innerHTML = `
+                        <img src="{{ current_user.profile_pic.url }}" class="message-profile-pic" alt="{{ current_user.username }}" />
+                        <div class="message-content">
+                            ${replyHtml}
+                            <div class="message-text">${messageContent}</div>
+                            ${fileHtml}
+                            <div class="message-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}, ${new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}</div>
+                            <div class="message-seen">
+                                <span class="read-receipt sent"><i class="fas fa-check"></i> Sent</span>
+                            </div>
+                            <div class="dots-menu" onclick="toggleMessageDropdown(${data.message_id}, event)">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </div>
+                            <div class="message-dropdown" id="message-dropdown-${data.message_id}">
+                                <div class="message-dropdown-item" onclick="editMessage(${data.message_id})">
+                                    <i class="fas fa-edit"></i> Edit
+                                </div>
+                                <div class="message-dropdown-item" onclick="confirmDeleteMessage(${data.message_id})">
+                                    <i class="fas fa-trash-alt"></i> Delete
+                                </div>
+                                <div class="message-dropdown-item" onclick="replyToMessage(${data.message_id})">
+                                    <i class="fas fa-reply"></i> Reply
+                                </div>
+                            </div>
+                        </div>
+                        <div class="reply-indicator" id="reply-indicator-${data.message_id}"></div>
+                    `;
+                    
+                    // Remove empty state if present
+                    const emptyState = messagesContainer.querySelector('.empty-state');
+                    if (emptyState) {
+                        emptyState.remove();
+                    }
+                    
+                    messagesContainer.appendChild(newMessage);
+                    messageInput.value = '';
+                    document.getElementById('file').value = '';
+                    
+                    // Clear reply state
+                    cancelReply();
+                    
+                    // Scroll to bottom
+                    scrollToLatest();
+                } else {
+                    showNotification("Failed to send message", "error");
+                }
+            });
+    });
+
+    // Typing indicator logic
+    let typingTimeout;
+    messageInput.addEventListener('input', function() {
+        clearTimeout(typingTimeout);
+        
+        // Notify server that user is typing
+        fetch('/user_typing/{{ recipient.id }}/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        // Reset typing status after 2 seconds of inactivity
+        typingTimeout = setTimeout(() => {
+            fetch('/user_stopped_typing/{{ recipient.id }}/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            });
+        }, 2000);
+    });
+
+    // Setup real-time updates
+    function connectWebSocket() {
+        const chatSocket = new WebSocket(
+            'ws://' + window.location.host + '/ws/chat/{{ recipient.id }}/'
+        );
+
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            
+            if (data.type === 'new_message') {
+                // Handle new message from other user
+                const newMessage = document.createElement('div');
+                newMessage.className = 'message received';
+                newMessage.id = `message-${data.message_id}`;
+                newMessage.setAttribute('data-message-id', data.message_id);
+                
+                let replyHtml = '';
+                if (data.reply_info) {
+                    replyHtml = `
+                        <div class="reply-to">
+                            Replying to: ${data.reply_info.content}
+                        </div>
+                    `;
+                }
+                
+                let fileHtml = '';
+                if (data.file_url) {
+                    if (data.file_url.toLowerCase().endsWith('.mp4') || data.file_url.toLowerCase().endsWith('.webm')) {
+                        fileHtml = `<video controls width="250"><source src="${data.file_url}" type="video/mp4"></video>`;
+                    } else {
+                        fileHtml = `<img src="${data.file_url}" style="max-width: 100%; border-radius: 10px;" alt="Attachment">`;
+                    }
+                }
+                
+                newMessage.innerHTML = `
+                    <img src="${data.sender_pic}" class="message-profile-pic" alt="${data.sender_name}" />
+                    <div class="message-content">
+                        ${replyHtml}
+                        <div class="message-text">${data.content}</div>
+                        ${fileHtml}
+                        <div class="message-time">${new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}, ${new Date(data.timestamp).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}</div>
+                    </div>
+                    <div class="reply-indicator" id="reply-indicator-${data.message_id}"></div>
+                `;
+                
+                // Remove empty state if present
+                const emptyState = messagesContainer.querySelector('.empty-state');
+                if (emptyState) {
+                    emptyState.remove();
+                }
+                
+                messagesContainer.appendChild(newMessage);
+                
+                // Mark as received automatically
+                fetch(`/mark_as_seen/${data.message_id}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                // Play notification sound if tab not focused
+                if (!document.hasFocus()) {
+                    playNotificationSound();
+                }
+                
+                // Scroll to bottom if already near bottom
+                const scrollDiff = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
+                if (scrollDiff < 100) {
+                    scrollToLatest();
+                } else {
+                    // Show "new message" notification
+                    showNewMessageNotification();
+                }
+            } else if (data.type === 'message_seen') {
+                // Update seen status for messages
+                document.querySelectorAll('.message.sent').forEach(message => {
+                    const messageId = message.getAttribute('data-message-id');
+                    if (data.message_ids.includes(parseInt(messageId))) {
+                        const readReceipt = message.querySelector('.message-seen');
+                        if (readReceipt) {
+                            readReceipt.innerHTML = '<span class="read-receipt seen"><i class="fas fa-check-double"></i> Seen</span>';
+                        }
+                    }
+                });
+            } else if (data.type === 'typing') {
+                // Show typing indicator
+                document.getElementById('typing-indicator').style.display = 'block';
+            } else if (data.type === 'stopped_typing') {
+                // Hide typing indicator
+                document.getElementById('typing-indicator').style.display = 'none';
+            } else if (data.type === 'user_online') {
+                // Update online status
+                const title = document.querySelector('.title');
+                if (!title.querySelector('.online-dot')) {
+                    title.innerHTML = `Chat with {{ recipient.username }} <span class="online-dot"></span>`;
+                }
+            } else if (data.type === 'user_offline') {
+                // Update offline status
+                const title = document.querySelector('.title');
+                const onlineDot = title.querySelector('.online-dot');
+                if (onlineDot) {
+                    onlineDot.remove();
+                    title.innerHTML = `Chat with {{ recipient.username }} <span style="font-size: 0.8em;">(Last seen just now)</span>`;
+                }
+            } else if (data.type === 'message_deleted') {
+                // Remove deleted message
+                const messageToDelete = document.getElementById(`message-${data.message_id}`);
+                if (messageToDelete) {
+                    messageToDelete.remove();
+                }
+            } else if (data.type === 'message_edited') {
+                // Update edited message
+                const messageToEdit = document.getElementById(`message-${data.message_id}`);
+                if (messageToEdit) {
+                    const messageTextDiv = messageToEdit.querySelector('.message-text');
+                    if (messageTextDiv) {
+                        messageTextDiv.textContent = data.new_content;
+                    }
+                }
+            }
+        };
+
+        chatSocket.onclose = function(e) {
+            console.log('Chat socket closed, trying to reconnect...');
+            setTimeout(connectWebSocket, 1000);
+        };
+    }
+
+    connectWebSocket();
+
+    function showNotification(message, type) {
+        // Create notification element if it doesn't exist
+        let notification = document.getElementById('notification');
+        if (!notification) {
+            notification = document.createElement('div');
+            notification.id = 'notification';
+            notification.className = 'notification';
+            document.body.appendChild(notification);
+        }
+        
+        // Set content and style
+        notification.textContent = message;
+        notification.className = `notification ${type}`;
+        
+        // Show notification
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+        
+        // Auto-hide after delay
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 3000);
+    }
+
+    function playNotificationSound() {
+        const audio = new Audio('/static/sounds/notification.mp3');
+        audio.play();
+    }
+
+    function showNewMessageNotification() {
+        const notification = document.createElement('div');
+        notification.className = 'new-message-notification';
+        notification.innerHTML = `
+            <div>New message</div>
+            <button onclick="scrollToLatest(true)">View</button>
+        `;
+        messagesContainer.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 5000);
+    }
+/**
+ * Enhanced Screen Capture Prevention
+ * Provides multiple layers of protection against screenshot attempts
+ */
+
+// Create warning element if it doesn't exist
+/**
+ * Enhanced Screenshot Protection
+ * - Uses multiple detection methods
+ * - Employs visual deterrents
+ * - Includes watermarking for traceability
+ */
+
+// Create and initialize protection elements
+function initScreenshotProtection() {
+  // Create the warning element
+  const warningDiv = document.createElement('div');
+  warningDiv.id = 'screenshotWarning';
+  warningDiv.className = 'screenshot-warning';
+  warningDiv.innerHTML = `
+    <i class="fas fa-shield-alt"></i> 
+    Screenshot detected! This content is protected.
+  `;
+  document.body.appendChild(warningDiv);
+
+  // Add CSS styles
+  const style = document.createElement('style');
+  style.textContent = `
+    .screenshot-warning {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: #d81b60;
+      color: white;
+      text-align: center;
+      padding: 10px;
+      z-index: 9999;
+      font-weight: bold;
+      animation: slideDown 0.3s forwards;
+    }
+    
+    @keyframes slideDown {
+      from { transform: translateY(-100%); }
+      to { transform: translateY(0); }
+    }
+    
+    .protected-content {
+      position: relative;
+    }
+    
+    .content-watermark {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0.1;
+      transform: rotate(-30deg);
+      font-size: 18px;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    
+    .protected-media {
+      user-select: none;
+      -webkit-user-select: none;
+      pointer-events: none;
+    }
+    
+    .protection-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(255,255,255,0.9);
+      z-index: 9998;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+      color: #d81b60;
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Create overlay for momentary display during screenshot attempts
+  const overlay = document.createElement('div');
+  overlay.className = 'protection-overlay';
+  overlay.id = 'protectionOverlay';
+  overlay.innerHTML = '<div>Content Protected</div>';
+  document.body.appendChild(overlay);
+  
+  // Apply protection to elements
+  applyProtectionToContent();
+  
+  // Apply watermarks
+  applyWatermarks();
+}
+
+// Apply protection to media and content elements
+function applyProtectionToContent() {
+  // Protect message content
+  document.querySelectorAll('.message-content').forEach(el => {
+    el.classList.add('protected-content');
+    el.setAttribute('oncontextmenu', 'return false;');
+  });
+  
+  // Protect media elements
+  document.querySelectorAll('img, video').forEach(el => {
+    el.classList.add('protected-media');
+    el.setAttribute('draggable', 'false');
+    el.setAttribute('oncontextmenu', 'return false;');
+    el.setAttribute('onselectstart', 'return false;');
+  });
+}
+
+// Apply watermarks to content
+function applyWatermarks() {
+  const userId = "{{ current_user.username }}"; // Django template variable
+  const timestamp = new Date().toISOString();
+  const watermarkText = `${userId} • ${timestamp}`;
+  
+  document.querySelectorAll('.protected-content').forEach(el => {
+    if (!el.querySelector('.content-watermark')) {
+      const watermark = document.createElement('div');
+      watermark.className = 'content-watermark';
+      watermark.textContent = watermarkText;
+      el.style.position = 'relative';
+      el.appendChild(watermark);
+    }
+  });
+}
+
+// Show warning when screenshot attempt is detected
+function handleScreenshotAttempt() {
+  const warningElement = document.getElementById('screenshotWarning');
+  const overlay = document.getElementById('protectionOverlay');
+  
+  // Flash content with protection overlay
+  if (overlay) {
+    overlay.style.display = 'flex';
+    
+    // Show only briefly to catch the screenshot moment
+    setTimeout(() => {
+      overlay.style.display = 'none';
+    }, 200);
+  }
+  
+  // Show warning
+  if (warningElement) {
+    warningElement.style.display = 'block';
+    
+    // Hide after a few seconds
+    setTimeout(() => {
+      warningElement.style.display = 'none';
+    }, 3000);
+  }
+  
+  // Log attempt (could send to server in production)
+  console.log(`Screenshot attempt at ${new Date().toISOString()}`);
+  
+  // You could send analytics data to server here
+  /*
+  fetch('/log_screenshot_attempt/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token }}'
+    },
+    body: JSON.stringify({
+      timestamp: new Date().toISOString(),
+      url: window.location.href
+    })
+  });
+  */
+}
+
+// Multiple detection techniques combined
+function setupDetectionMethods() {
+  // 1. Detect keyboard shortcuts
+  document.addEventListener('keydown', function(e) {
+    // PrintScreen key
+    if (e.key === 'PrintScreen' || e.code === 'PrintScreen' || e.keyCode === 44) {
+      e.preventDefault();
+      handleScreenshotAttempt();
+      return false;
+    }
+    
+    // Ctrl+P (Print)
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.keyCode === 80)) {
+      e.preventDefault();
+      handleScreenshotAttempt();
+      return false;
+    }
+    
+    // Command+Shift+3 or Command+Shift+4 (Mac screenshots)
+    if (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4')) {
+      e.preventDefault();
+      handleScreenshotAttempt();
+      return false;
+    }
+    
+    // Windows+Shift+S (Windows snipping tool)
+    if (e.shiftKey && e.metaKey && (e.key === 's' || e.keyCode === 83)) {
+      e.preventDefault();
+      handleScreenshotAttempt();
+      return false;
+    }
+  }, true);
+  
+  // 2. Use the Clipboard API
+  navigator.clipboard && document.addEventListener('copy', function(e) {
+    const selection = window.getSelection().toString();
+    if (selection && selection.length > 10) {
+      if (document.activeElement.tagName !== 'INPUT' && 
+          document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        handleScreenshotAttempt();
+      }
+    }
+  });
+  
+  // 3. Use the visibilitychange event - may indicate tab switching for screenshot tools
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') {
+      document.getElementById('protectionOverlay').style.display = 'flex';
+    } else {
+      setTimeout(() => {
+        document.getElementById('protectionOverlay').style.display = 'none';
+      }, 300);
+    }
+  });
+  
+  // 4. Use blur event - may indicate window switching for screenshot tools
+  window.addEventListener('blur', function() {
+    handleScreenshotAttempt();
+  });
+  
+  // 5. Prevent right-click on protected content
+  document.addEventListener('contextmenu', function(e) {
+    if (e.target.closest('.protected-content, .protected-media')) {
+      e.preventDefault();
+      handleScreenshotAttempt();
+      return false;
+    }
+  });
+  
+  // 6. Try to detect browser extension screenshot tools
+  // Some tools add specific elements to the DOM
+  const observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+      if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+        for (let i = 0; i < mutation.addedNodes.length; i++) {
+          const node = mutation.addedNodes[i];
+          if (node.nodeType === 1) { // Element node
+            // Check for elements commonly added by screenshot extensions
+            if (node.id && (
+                node.id.includes('screenshot') || 
+                node.id.includes('capture') || 
+                node.id.includes('snip')
+            )) {
+              handleScreenshotAttempt();
+            }
+            
+            // Apply protection to new content
+            if (node.querySelectorAll) {
+              const mediaElements = node.querySelectorAll('img, video');
+              if (mediaElements.length) {
+                applyProtectionToContent();
+                applyWatermarks();
+              }
+            }
+          }
+        }
+      }
+    });
+  });
+  
+  // Start observing DOM changes
+  observer.observe(document.body, { 
+    childList: true, 
+    subtree: true 
+  });
+}
+
+// Initialize everything when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+  initScreenshotProtection();
+  setupDetectionMethods();
+  
+  // Reapply protection periodically for dynamic content
+  setInterval(function() {
+    applyProtectionToContent();
+    applyWatermarks();
+  }, 2000);
+  
+  console.log('%cThis page contains protected content with screenshot detection enabled.', 
+    'color: #d81b60; font-size: 14px; font-weight: bold;');
+});
+
+// Additional advanced protection: CSS interference with screenshot tools
+// This makes the content look different when captured by some tools
+const styleInterference = document.createElement('style');
+styleInterference.innerHTML = `
+  @media print {
+    body * {
+      visibility: hidden !important;
+    }
+    
+    .messages-container::after {
+      content: "Printing is disabled for this content";
+      visibility: visible;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+      color: red;
+    }
+  }
+`;
+document.head.appendChild(styleInterference);
+</script>
+</body>
+</html>

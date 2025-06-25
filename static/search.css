@@ -1,0 +1,215 @@
+/* Root Theme */
+body {
+    background-color: #0d0d0d;
+    color: #ffffff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    transition: background-color 0.4s ease;
+}
+
+/* Light Mode */
+body.light-mode {
+    background-color: #f0f0f0;
+    color: #222;
+}
+
+.light-mode .search-bar,
+.light-mode .result-item,
+.light-mode .history-item {
+    background-color: #ffffff;
+    color: #000;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.header1 {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #121212;
+    border-bottom: 1px solid #222;
+    box-shadow: 0 2px 8px rgba(0, 255, 255, 0.2);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+#arrow {
+    font-size: 20px;
+    cursor: pointer;
+    color: #00ffff;
+    transition: transform 0.2s;
+}
+
+#arrow:hover {
+    transform: scale(1.2);
+    color: #00e6e6;
+}
+
+.mode-toggle {
+    background: none;
+    border: 1px solid #00ffff;
+    color: #00ffff;
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    margin-left: auto;
+    transition: background-color 0.3s ease;
+}
+
+.mode-toggle:hover {
+    background-color: rgba(0, 255, 255, 0.1);
+}
+
+.container {
+    padding: 20px;
+}
+
+.search-bar {
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 16px;
+    border: 2px solid #00ffff;
+    border-radius: 8px;
+    background-color: #1a1a1a;
+    color: #ffffff;
+    box-shadow: 0 0 8px #00ffff;
+    margin-bottom: 20px;
+    outline: none;
+    transition: 0.3s;
+}
+
+.search-bar:focus {
+    box-shadow: 0 0 15px #00ffff;
+}
+
+.results-container, .history-container {
+    margin-top: 20px;
+}
+
+.result-item, .history-item {
+    display: flex;
+    align-items: center;
+    background-color: #1e1e1e;
+    border: 1px solid #00ffff;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    padding: 10px;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.result-item:hover,
+.history-item:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 20px #00ffff;
+}
+
+.result-item img,
+.history-item img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 15px;
+    border: 2px solid #00ffff;
+}
+
+.username {
+    font-weight: bold;
+    color: #00ffff;
+    cursor: pointer;
+    flex: 1;
+}
+
+.username:hover {
+    text-decoration: underline;
+    color: #00e6e6;
+}
+
+.follow-button {
+    background-color: #00ffff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s, box-shadow 0.3s;
+    color: #000;
+}
+
+.follow-button.following {
+    background-color: #ff00ff;
+    color: #fff;
+}
+
+.follow-button.follow-back {
+    background-color: #ff9900;
+    color: #fff;
+}
+
+.follow-button:hover {
+    box-shadow: 0 0 10px #00ffff;
+}
+
+/* Delete button (X) in history */
+.history-item button {
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    color: #ff3333;
+    cursor: pointer;
+    transition: transform 0.2s ease, color 0.3s;
+}
+
+.history-item button:hover {
+    transform: rotate(90deg) scale(1.2);
+    color: #ff6666;
+}
+
+/* Timestamp styling */
+.timestamp {
+    font-size: 12px;
+    color: #aaa;
+    margin-left: 10px;
+}
+
+/* Bottom nav */
+.bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background-color: #111;
+    padding: 10px 0;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    border-top: 1px solid #00ffff;
+    box-shadow: 0 -2px 10px rgba(0, 255, 255, 0.2);
+}
+
+.nav-item {
+    text-align: center;
+    color: #00ffff;
+    text-decoration: none;
+    transition: transform 0.2s;
+}
+
+.nav-item:hover {
+    transform: scale(1.1);
+    color: #00e6e6;
+}
+
+.nav-item.active {
+    color: #ff00ff;
+}
+
+.nav-item i {
+    font-size: 18px;
+}
+
+.no-results,
+.no-query {
+    text-align: center;
+    padding: 10px;
+    color: #aaa;
+}

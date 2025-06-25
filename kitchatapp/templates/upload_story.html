@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Upload Story</title>
+  <style>
+    :root {
+      --neon-blue: #00f0ff;
+      --neon-pink: #ff00ff;
+      --neon-purple: #9d00ff;
+      --background-dark: #0e0e0e;
+      --text-light: #fff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(145deg, #0e0e0e, #1e1e1e);
+      color: var(--text-light);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .container {
+      background-color: #1a1a1a;
+      border: 2px solid var(--neon-blue);
+      border-radius: 20px;
+      padding: 35px;
+      width: 100%;
+      max-width: 550px;
+      position: relative;
+      box-shadow: 0 0 20px var(--neon-blue), 0 0 40px var(--neon-pink);
+      animation: pulse 3s infinite alternate;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 20px var(--neon-blue); }
+      100% { box-shadow: 0 0 40px var(--neon-pink); }
+    }
+
+    .back-arrow {
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      font-size: 24px;
+      text-decoration: none;
+      color: var(--neon-blue);
+      border: 2px solid var(--neon-blue);
+      padding: 5px 10px;
+      border-radius: 8px;
+      transition: 0.3s;
+    }
+
+    .back-arrow:hover {
+      background-color: var(--neon-blue);
+      color: #000;
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--neon-pink);
+      margin-bottom: 30px;
+      font-size: 2em;
+    }
+
+    .upload-area {
+      border: 2px dashed var(--neon-border);
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      margin-bottom: 25px;
+      cursor: pointer;
+      color: var(--neon-blue);
+      transition: background 0.3s ease;
+    }
+
+    .upload-area:hover {
+      background-color: rgba(0, 240, 255, 0.1);
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .preview {
+      margin-top: 15px;
+      text-align: center;
+    }
+
+    .preview img, .preview video {
+      max-width: 100%;
+      max-height: 300px;
+      border-radius: 10px;
+      border: 2px solid var(--neon-pink);
+    }
+
+    button {
+      background: linear-gradient(to right, var(--neon-pink), var(--neon-purple));
+      color: white;
+      border: none;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 10px;
+      width: 100%;
+      cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px var(--neon-pink);
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px;
+      }
+
+      .back-arrow {
+        font-size: 20px;
+        padding: 4px 8px;
+      }
+
+      h1 {
+        font-size: 1.5em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="javascript:history.back()" class="back-arrow">&#8592; Back</a>
+
+    <h1>Upload Story</h1>
+    <form method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <label class="upload-area" for="image">Click or Drop Image Here</label>
+      <input type="file" name="image" id="image" accept="image/*">
+
+      <label class="upload-area" for="video">Click or Drop Video Here</label>
+      <input type="file" name="video" id="video" accept="video/*">
+
+      <div class="preview" id="preview"></div>
+
+      <button type="submit">Upload Story</button>
+    </form>
+  </div>
+
+  <script>
+    function previewFile(input, type) {
+      const file = input.files[0];
+      const previewDiv = document.getElementById('preview');
+      previewDiv.innerHTML = "";
+
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        if (type === 'image') {
+          const img = document.createElement("img");
+          img.src = e.target.result;
+          previewDiv.appendChild(img);
+        } else if (type === 'video') {
+          const video = document.createElement("video");
+          video.src = e.target.result;
+          video.controls = true;
+          previewDiv.appendChild(video);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    document.getElementById("image").addEventListener("change", function () {
+      previewFile(this, "image");
+    });
+
+    document.getElementById("video").addEventListener("change", function () {
+      previewFile(this, "video");
+    });
+
+    // Drag and drop support (optional enhancement)
+    const dropZones = document.querySelectorAll('.upload-area');
+
+    dropZones.forEach(zone => {
+      zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.style.backgroundColor = 'rgba(0,255,255,0.2)';
+      });
+
+      zone.addEventListener('dragleave', () => {
+        zone.style.backgroundColor = '';
+      });
+
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const input = document.getElementById(zone.getAttribute('for'));
+        input.files = e.dataTransfer.files;
+        input.dispatchEvent(new Event('change'));
+        zone.style.backgroundColor = '';
+      });
+    });
+  </script>
+</body>
+</html>

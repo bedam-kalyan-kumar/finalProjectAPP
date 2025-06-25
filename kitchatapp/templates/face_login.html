@@ -1,0 +1,35 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Face Login</title>
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: sans-serif;
+            text-align: center;
+            padding-top: 50px;
+        }
+        button {
+            padding: 12px 25px;
+            font-size: 18px;
+            background-color: #00f7ff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #00c2c7;
+        }
+    </style>
+</head>
+<body>
+    <h1>Login with Face Recognition</h1>
+    <form method="POST">
+        {% csrf_token %}
+        <button type="submit">Scan Face</button>
+    </form>
+</body>
+</html>

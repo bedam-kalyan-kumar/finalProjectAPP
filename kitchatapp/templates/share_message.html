@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages - Instagram Clone</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Arial', sans-serif;
+            margin-right: 380px;
+            margin-left: 370px;
+            padding: 0;
+            background-color: #fafafa;
+        }
+
+        /* Dark Mode */
+        body.dark-mode {
+            background-color: #121212;
+            color: #ffffff;
+        }
+        
+        .dark-mode .top-bar,
+        .dark-mode .contact-list,
+        .dark-mode .messages-container,
+        .dark-mode .input-container {
+            background-color: #333;
+            color: #fff;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background-color: #fff;
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+        }
+        .top-bar i {
+            font-size: 20px;
+        }
+        .top-bar .title {
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        /* Contact List */
+        .contact-list {
+            padding: 20px;
+            background-color: #fff;
+        }
+
+        .contact-item {
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Share Post Section */
+        .share-post-container {
+            background-color: #fff;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .share-post-container img {
+            max-width: 100px;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .share-form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .share-form select,
+        .share-form button {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+        }
+
+        .share-form button {
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            font-weight: bold;
+        }
+
+        .share-form button:hover {
+            background-color: #005bb5;
+        }
+
+        /* Messages Section */
+        .messages-container {
+            padding: 10px;
+            height: calc(100vh - 130px);
+            overflow-y: auto;
+            background-color: #fff;
+        }
+
+        /* Responsiveness */
+        @media (max-width: 600px) {
+            .messages-container {
+                padding: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div class="icon" onclick="window.location.href='{% url 'loginsuccess' %}'">
+            <i class="fas fa-arrow-left"></i>
+        </div>
+        <div class="title">Messages</div>
+        <div class="icon" onclick="toggleDarkMode()">
+            <i class="fas fa-moon"></i>
+        </div>
+    </div>
+
+    <!-- Contacts List -->
+    <div id="contact-list">
+        {% for contact in contacts %}
+            <div class="contact-item">
+                <div>
+                    <strong>{{ contact.username }}</strong>
+                </div>
+                <form method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="recipient_id" value="{{ contact.id }}">
+                    <button type="submit">Share</button>
+                </form>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Share Post Section -->
+    {% if post %}
+<div class="share-post-container">
+    <h3>Sharing: {{ post.content }}</h3>
+
+    {% if post.image and post.image.name %}
+        <img src="{{ post.image.url }}" alt="Post Image">
+    {% elif post.video and post.video.name %}
+        <video width="320" height="240" controls>
+            <source src="{{ post.video.url }}" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    {% else %}
+        <p>No media file to display.</p>
+    {% endif %}
+
+    <form method="POST" class="share-form">
+        {% csrf_token %}
+        <label for="recipient">Select a user to share with:</label>
+        <select name="recipient_id" required>
+            {% for contact in contacts %}
+                <option value="{{ contact.id }}">{{ contact.username }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Send</button>
+    </form>
+</div>
+{% endif %}
+
+
+    <script>
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+        }
+    </script>
+
+</body>
+</html>

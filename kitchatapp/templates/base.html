@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KiTChat</title>
+</head>
+<body>
+
+    {% block content %}
+    {% endblock %}
+
+    <!-- GLOBAL CALL NOTIFICATION -->
+    <div id="global-call-notification" class="global-call-notification" style="display: none;">
+        <div class="call-notification-content">
+            <h3 id="global-call-title">Incoming Call</h3>
+            <p id="global-call-from"></p>
+            <div class="call-notification-buttons">
+                <button class="accept-btn" onclick="acceptGlobalCall()">
+                    <i class="fas fa-phone"></i> Accept
+                </button>
+                <button class="reject-btn" onclick="rejectGlobalCall()">
+                    <i class="fas fa-phone-slash"></i> Reject
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CSS -->
+    <style>
+        .global-call-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 9999;
+            width: 300px;
+            animation: slideIn 0.3s forwards;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .call-notification-content {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .call-notification-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .accept-btn, .reject-btn {
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .accept-btn { background: #4CAF50; }
+        .reject-btn { background: #f44336; }
+    </style>
+
+    <!-- JavaScript -->
+    <script>
+        const currentUser = { id: "{{ request.user.id }}" };
+
+        let globalCallSocket;
+        let currentIncomingCall = null;
+
+        function connectGlobalCallSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            globalCallSocket = new WebSocket(`${protocol}${window.location.host}/ws/global_call/${currentUser.id}/`);
+
+            globalCallSocket.onopen = () => console.log("Global call WebSocket connected");
+
+            globalCallSocket.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+                console.log("Global call message:", data);
+
+                if (data.type === "call_offer") {
+                    handleGlobalIncomingCall(data);
+                }
+            };
+
+            globalCallSocket.onclose = function() {
+                setTimeout(connectGlobalCallSocket, 3000); // Reconnect
+            };
+        }
+
+        function handleGlobalIncomingCall(data) {
+            currentIncomingCall = data;
+            const notification = document.getElementById('global-call-notification');
+            document.getElementById('global-call-title').textContent = `Incoming ${data.call_type} Call`;
+            document.getElementById('global-call-from').textContent = `From: ${data.sender}`;
+            notification.style.display = 'block';
+            playGlobalRingtone();
+
+            setTimeout(() => {
+                if (currentIncomingCall && currentIncomingCall.id === data.id) {
+                    rejectGlobalCall();
+                }
+            }, 30000);
+        }
+
+        function playGlobalRingtone() {
+            const ringtone = new Audio('/static/sounds/ringtone.mp3');
+            ringtone.loop = true;
+            ringtone.id = 'global-ringtone';
+            ringtone.play().catch(e => console.error('Ringtone error:', e));
+            window.globalRingtone = ringtone;
+        }
+
+        function stopGlobalRingtone() {
+            if (window.globalRingtone) {
+                window.globalRingtone.pause();
+                window.globalRingtone.currentTime = 0;
+                window.globalRingtone = null;
+            }
+        }
+
+        function acceptGlobalCall() {
+            if (!currentIncomingCall) return;
+            stopGlobalRingtone();
+            document.getElementById('global-call-notification').style.display = 'none';
+
+            if (window.location.pathname.includes('/chat/') &&
+                window.location.pathname.includes(`${currentIncomingCall.sender}`)) {
+                if (typeof acceptCall === 'function') acceptCall();
+            } else {
+                window.location.href = `/chat/${currentIncomingCall.sender}/`;
+                setTimeout(() => {
+                    if (typeof acceptCall === 'function') acceptCall();
+                }, 1000);
+            }
+
+            currentIncomingCall = null;
+        }
+
+        function rejectGlobalCall() {
+            if (!currentIncomingCall) return;
+            stopGlobalRingtone();
+            document.getElementById('global-call-notification').style.display = 'none';
+
+            globalCallSocket.send(JSON.stringify({
+                type: 'call_rejected',
+                to: currentIncomingCall.sender,
+                call_id: currentIncomingCall.id
+            }));
+
+            currentIncomingCall = null;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            connectGlobalCallSocket();
+        });
+    </script>
+</body>
+</html>

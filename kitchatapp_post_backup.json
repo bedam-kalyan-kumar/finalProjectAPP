@@ -1,0 +1,38 @@
+[
+    {
+        "id": 2,
+        "caption": "",
+        "likes_count": 0,
+        "comments_count": 0,
+        "shares_count": 0,
+        "image": "",
+        "video": "posts/videos/Screen_Recording_2025-01-06_205923_Z0Ctvi8.mp4",
+        "created_at": "2025-04-10 03:46:16.693592",
+        "user_id": 17,
+        "media": ""
+    },
+    {
+        "id": 3,
+        "caption": "",
+        "likes_count": 0,
+        "comments_count": 0,
+        "shares_count": 0,
+        "image": "",
+        "video": "posts/videos/Screen_Recording_2025-01-06_205923_w7hI2PV.mp4",
+        "created_at": "2025-04-10 03:47:22.292264",
+        "user_id": 17,
+        "media": ""
+    },
+    {
+        "id": 4,
+        "caption": "",
+        "likes_count": 0,
+        "comments_count": 0,
+        "shares_count": 0,
+        "image": "",
+        "video": "posts/videos/Screen_Recording_2025-01-06_205923_w1Ebzge.mp4",
+        "created_at": "2025-04-10 03:51:08.908122",
+        "user_id": 17,
+        "media": ""
+    }
+]

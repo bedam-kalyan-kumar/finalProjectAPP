@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {% load static humanize user_status %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages - Instagram Clone</title>
+    <link rel="stylesheet" href="{% static 'messages.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+
+<body>
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <i class="fas fa-arrow-left" title="Back" onclick="window.location.href='{% url 'loginsuccess' %}'"></i>
+        <div class="title">Messages</div>
+        <div>
+            <i class="fas fa-sync-alt refresh-icon" title="Refresh" onclick="window.location.reload();"></i>
+        </div>
+    </div>
+
+    <!-- CSRF Token -->
+    <input type="hidden" id="csrf-token" value="{{ csrf_token }}">
+
+    <!-- Search Bar -->
+    <input type="text" class="search-bar" placeholder="Search users..." onkeyup="searchContacts()">
+
+    <!-- Tabs -->
+    <div class="tab-buttons">
+        <button onclick="showSection('contacts')" id="btn-contacts" class="tab-btn active">Contacts</button>
+        <button onclick="showSection('new-messages')" id="btn-new" class="tab-btn">New Messages</button>
+    </div>
+
+    <!-- Sections Wrapper -->
+    <div class="sections-wrapper">
+
+        <!-- Contacts Section (Initially shown) -->
+        <div id="contacts" class="contact-section">
+            <h3 class="section-title">Contacts</h3>
+            <div class="contact-list">
+                {% for contact in contacts %}
+                <div class="contact-item" data-username="{{ contact.username|lower }}">
+                    <div class="contact-header" onclick="window.location.href='/chat/{{ contact.id }}/'">
+                        <img src="{% if contact.image %}{{ contact.image.url }}{% else %}/media/profile_pics/default-profile.png{% endif %}" class="profile-pic" alt="{{ contact.username }}">
+                        <div>
+                            <div class="contact-name">
+                                {{ contact.username }}
+                                {% if contact|is_user_online %}
+                                <span class="online-status" style="color: green; font-size: 12px;">● Active</span>
+                                {% endif %}
+                            </div>
+                            {% if not contact|is_user_online and contact.last_seen %}
+                            <div class="last-seen">Last seen {{ contact.last_seen|naturaltime }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="right-actions">
+                        <button class="icon-btn" title="Delete Account" onclick="deleteUser({{ contact.id }}, '{{ contact.username }}')">
+                            <i class="fas fa-user-slash"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- New Messages Section (Hidden by default) -->
+        <div id="new-messages" class="contact-section" style="display: none;">
+            {% if message_users %}
+            <h3 class="section-title">New Messages</h3>
+            <div class="contact-list">
+                {% for user in message_users %}
+                <div class="contact-item" data-username="{{ user.username|lower }}">
+                    <div class="contact-header" onclick="window.location.href='/chat/{{ user.id }}/'">
+                        <img src="{% if user.image %}{{ user.image.url }}{% else %}/media/profile_pics/default-profile.png{% endif %}" class="profile-pic">
+                        <div>
+                            <div class="contact-name">
+                                {{ user.username }}
+                                {% if user|is_user_online %}
+                                <span class="online-status">● Active</span>
+                                {% endif %}
+                            </div>
+                            {% if not user|is_user_online and user.last_seen %}
+                            <div class="last-seen">Last seen {{ user.last_seen|naturaltime }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p>No new messages.</p>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <!-- JavaScript for toggling sections -->
+    <script>
+        function showSection(sectionId) {
+            const newSection = document.getElementById('new-messages');
+            const contactSection = document.getElementById('contacts');
+
+            const btnNew = document.getElementById('btn-new');
+            const btnContacts = document.getElementById('btn-contacts');
+
+            if (sectionId === 'new-messages') {
+                // Hide Contacts, Show New Messages
+                newSection.style.display = 'block';
+                contactSection.style.display = 'none';
+                btnNew.classList.add('active');
+                btnContacts.classList.remove('active');
+                // Disable the "New Messages" tab once clicked
+                // btnNew.setAttribute('disabled', 'false');
+            } else {
+                // Hide New Messages, Show Contacts
+                newSection.style.display = 'none';
+                contactSection.style.display = 'block';
+                btnContacts.classList.add('active');
+                btnNew.classList.remove('active');
+            }
+        }
+    </script>
+
+    <!-- Simple styles for tabs (optional) -->
+    <style>
+        .tab-buttons {
+            display: flex;
+            justify-content: center;
+            margin: 10px 0;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background-color: #f0f0f0;
+            margin: 0 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .tab-btn.active {
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+        }
+        .tab-btn:disabled {
+            background-color: #dcdcdc;
+            cursor: not-allowed;
+        }
+    </style>
+
+</body>
+
+       
+
+    <!-- JavaScript -->
+    <script>
+        function searchContacts() {
+            const input = document.querySelector('.search-bar').value.toLowerCase();
+            document.querySelectorAll('.contact-item').forEach(contact => {
+                const username = contact.dataset.username;
+                contact.style.display = username.includes(input) ? 'flex' : 'none';
+            });
+        }
+
+        function deleteUser(userId, username) {
+            if (confirm(`Are you sure you want to delete ${username}'s account?`)) {
+                const csrfToken = document.getElementById('csrf-token').value;
+
+                fetch(`/delete_user/${userId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json'
+                    }
+                }).then(response => {
+                    if (response.ok) {
+                        alert(`${username}'s chat has been deleted.`);
+                        location.reload();
+                    } else {
+                        alert('Failed to delete the user.');
+                    }
+                });
+            }
+        }
+
+        // ----------- Screenshot & Copy Protection -----------
+
+        function createWarningElement() {
+            if (!document.getElementById('screenshotWarning')) {
+                const warningDiv = document.createElement('div');
+                warningDiv.id = 'screenshotWarning';
+                warningDiv.style.cssText = `
+                    display: none;
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(0, 0, 0, 0.9);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    z-index: 9999;
+                    text-align: center;
+                    box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+                    animation: pulse 1s infinite alternate;
+                `;
+                warningDiv.innerHTML = `
+                    <div style="font-size: 24px; margin-bottom: 10px;">⚠️ Screenshot Detected!</div>
+                    <div>This content is protected and cannot be captured.</div>
+                `;
+
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes pulse {
+                        from { box-shadow: 0 0 20px rgba(255, 0, 0, 0.5); }
+                        to { box-shadow: 0 0 30px rgba(255, 0, 0, 0.8); }
+                    }
+                    .protected-media {
+                        user-select: none;
+                        -webkit-user-select: none;
+                        pointer-events: none;
+                    }
+                    .screenshot-protection {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: transparent;
+                        z-index: 9998;
+                        display: none;
+                    }
+                `;
+                document.head.appendChild(style);
+                document.body.appendChild(warningDiv);
+
+                const overlay = document.createElement('div');
+                overlay.className = 'screenshot-protection';
+                overlay.id = 'screenshotProtection';
+                document.body.appendChild(overlay);
+            }
+        }
+
+        function detectScreenCaptureAttempt() {
+            const warning = document.getElementById('screenshotWarning');
+            const overlay = document.getElementById('screenshotProtection');
+
+            if (warning && overlay) {
+                overlay.style.display = 'block';
+                warning.style.display = 'block';
+
+                setTimeout(() => overlay.style.display = 'none', 100);
+                setTimeout(() => warning.style.display = 'none', 3000);
+            }
+
+            console.log('Screenshot attempt detected: ' + new Date().toISOString());
+        }
+
+        function applyProtectionToMedia() {
+            document.querySelectorAll('.media-item, .profile-photo, img, video').forEach(el => {
+                el.classList.add('protected-media');
+                el.setAttribute('draggable', 'false');
+                el.setAttribute('oncontextmenu', 'return false;');
+                el.setAttribute('onselectstart', 'return false;');
+                el.setAttribute('onmousedown', 'return false;');
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            createWarningElement();
+            applyProtectionToMedia();
+        });
+
+        document.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            detectScreenCaptureAttempt();
+        });
+
+        document.addEventListener('copy', e => {
+            if (window.getSelection && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                e.preventDefault();
+                detectScreenCaptureAttempt();
+            }
+        });
+
+        document.addEventListener('keydown', e => {
+            const key = e.key.toLowerCase();
+            if (
+                key === 'printscreen' || e.keyCode === 44 || // Print Screen
+                (e.ctrlKey && key === 'p') ||               // Ctrl+P
+                (e.metaKey && e.shiftKey && (key === '3' || key === '4' || key === 's')) // Mac + Windows shortcuts
+            ) {
+                e.preventDefault();
+                detectScreenCaptureAttempt();
+            }
+        });
+    </script>
+
+
+</html>

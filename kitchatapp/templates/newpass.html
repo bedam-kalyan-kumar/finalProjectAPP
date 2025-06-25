@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPRINT</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 50px;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input[type="password"],
+        input[type="text"] {
+            width: 90%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .eye-icon {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #28a745;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Create New Password</h1>
+        <form id="passwordForm" onsubmit="success(event)">
+            <div class="input-group">
+                <label for="newPassword">New Password</label>
+                <input type="password" id="newPassword" placeholder="Enter new password" minlength="8" required>
+            </div>
+            <div class="input-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" id="confirmPassword" placeholder="Confirm password" minlength="8" required>
+                <input type="checkbox" id="kkk" onclick="togglePasswordVisibility()"> Show password
+            </div>
+            <button id="button" type="submit" onclick="kk()">Submit</button>
+            <!-- <a href="{% url 'loginform' %}">Go to Login</a> -->
+        </form>
+    </div>
+
+    <script>
+        function togglePasswordVisibility() {
+            const newPasswordField = document.getElementById('newPassword');
+            const confirmPasswordField = document.getElementById('confirmPassword');
+            const check = document.getElementById('kkk');
+    
+            if (check.checked) {
+                newPasswordField.type = 'text';
+                confirmPasswordField.type = 'text';
+            } else {
+                newPasswordField.type = 'password';
+                confirmPasswordField.type = 'password';
+            }
+        }
+
+        function success(event) {
+    event.preventDefault(); // Prevent the default form submission behavior
+
+    const newPasswordField = document.getElementById('newPassword').value;
+    const confirmPasswordField = document.getElementById('confirmPassword').value;
+
+    if (newPasswordField.length >= 8 && confirmPasswordField.length >= 8 && newPasswordField === confirmPasswordField) {
+        confirm("Password changed successfully");
+        window.location.href = "{% url 'loginform' %}";
+        // Go back to the previous page or a specific path after a delay
+        setTimeout(() => {
+        }, 2000);
+    } else if (newPasswordField !== confirmPasswordField) {
+        alert("Passwords did not match");
+    } else {
+        alert("Enter correct details");
+    }
+}
+function kk(){
+//    setTimeout(()=>{
+//     location.reload()
+//    }
+
+  location.reload()
+
+}
+
+    </script>
+</body>
+</html>

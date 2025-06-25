@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    kalyan
+    {% extends 'base.html' %}
+{% block content %}
+<div class="share-container">
+    <h2>Share Post</h2>
+    <div class="post-preview">
+        {% if post.image %}
+            <img src="{{ post.image.url }}" alt="Post image">
+        {% endif %}
+        <p>{{ post.caption|truncatechars:50 }}</p>
+    </div>
+    
+    <form method="POST">
+        {% csrf_token %}
+        <div class="contact-list">
+            <h3>Select a contact to share with:</h3>
+            {% for contact in contacts %}
+            <div class="contact-item">
+                <input type="radio" name="recipient_id" value="{{ contact.id }}" id="contact-{{ contact.id }}">
+                <label for="contact-{{ contact.id }}">
+                    <img src="{{ contact.profile_pic.url }}" alt="{{ contact.username }}">
+                    {{ contact.username }}
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn-share">Share Post</button>
+    </form>
+</div>
+{% endblock %}
+</body>
+</html>

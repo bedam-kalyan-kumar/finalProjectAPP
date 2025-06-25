@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Page</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <style>
+        /* General body styling */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: white;
+            color: black;
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
+        .following {
+    background-color: #ccc;
+}
+
+.follow-button.follow-back {
+    background-color: #f0c674;
+    font-weight: bold;
+}
+
+        body.light-mode {
+            background-color: #f4f4f4;
+            color: #1e1e1e;
+        }
+
+        /* Container for search input and results */
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #2c2c2c;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: background 0.5s ease, box-shadow 0.5s ease;
+        }
+
+        body.light-mode .container {
+            background: #ffffff;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Styling the search input field */
+        .search-bar {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            border: 1px solid #444;
+            border-radius: 8px;
+            box-sizing: border-box;
+            transition: border 0.3s, box-shadow 0.3s;
+            background: #1e1e1e;
+            color: #f4f4f4;
+        }
+
+        body.light-mode .search-bar {
+            background: #ffffff;
+            color: #1e1e1e;
+            border-color: #ccc;
+        }
+
+        .search-bar:focus {
+            border-color: #00ffff;
+            outline: none;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        /* Results container */
+        .results-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Individual result styling */
+        .result-item {
+            padding: 12px;
+            border: 1px solid #444;
+            border-radius: 8px;
+            background: #2c2c2c;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+
+        body.light-mode .result-item {
+            background: #ffffff;
+            border-color: #ddd;
+        }
+
+        .result-item:hover {
+            background-color: #3a3a3a;
+            transform: translateY(-3px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        body.light-mode .result-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* Avatar styling */
+        .result-item img {
+            width: 40px;
+            height: 40px;
+            margin-right: 15px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #00ffff;
+            transition: border-color 0.3s;
+        }
+
+        .result-item:hover img {
+            border-color: #ff6f61;
+        }
+
+        /* Username text styling */
+        .result-item .username {
+            flex: 1;
+            font-weight: bold;
+            color: #f4f4f4;
+        }
+
+        body.light-mode .result-item .username {
+            color: #1e1e1e;
+        }
+
+        /* Follow button styling */
+        .result-item button {
+            padding: 6px 12px;
+            border: none;
+            background: #00ffff;
+            color: #1e1e1e;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
+        }
+
+        .result-item button:hover {
+            background: #ff6f61;
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(255, 111, 97, 0.5);
+        }
+
+        /* Following state styling */
+        .result-item button.following {
+            background: #28a745;
+        }
+
+        .result-item button.following:hover {
+            background: #218838;
+        }
+
+        /* No results message */
+        .no-results {
+            text-align: center;
+            color: #888;
+            font-style: italic;
+        }
+
+        /* Message when the user hasn't typed anything */
+        .no-query {
+            text-align: center;
+            color: #ff6f61;
+            font-weight: bold;
+        }
+
+        /* Menu styling */
+        .menu {
+            width: calc(61.5% - 200px);
+            display: flex;
+            justify-content: space-evenly;
+            align-items: center;
+            background: linear-gradient(135deg, #1a1a1a, #333);
+            padding: 10px 0;
+            border-top: 1px solid #444;
+            position: fixed;
+            bottom: 0;
+            left: 345px;
+            right: 15px;
+            border-radius: 50px;
+            box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.3);
+            animation: neonPulse 2s infinite alternate;
+        }
+
+        body.light-mode .menu {
+            background: linear-gradient(135deg, #ffffff, #f0f0f0);
+            border-top: 1px solid #ddd;
+        }
+
+        .menu-item {
+            color: #00ffff;
+            font-size: 1.2em;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: color 0.3s, transform 0.3s;
+        }
+
+        .menu-item:hover {
+            color: #ff6f61;
+            transform: scale(1.1);
+        }
+
+        .menu-item i {
+            margin-bottom: 5px;
+        }
+
+        /* Header styling */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 15px;
+            position: sticky;
+            top: 0;
+            background-color: #2c2c2c;
+            z-index: 10;
+            border-radius: 25px;
+        }
+
+        body.light-mode .header {
+            background-color: #ffffff;
+        }
+
+        .header i {
+            font-size: 1.5em;
+            color: #00ffff;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .header i:hover {
+            color: #ff6f61;
+        }
+
+        /* Neon pulse animation */
+        @keyframes neonPulse {
+            0% {
+                box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            }
+            100% {
+                box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+            }
+        }
+
+        /* Dark/Light Mode Toggle */
+        .mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #00ffff, #ff6f61);
+            color: #1e1e1e;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease, transform 0.3s ease;
+        }
+
+        .mode-toggle:hover {
+            background: linear-gradient(135deg, #ff6f61, #00ffff);
+            transform: scale(1.1);
+        }
+        .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 550px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 12px 0;
+      background-color: white;
+      border-top: 1px solid black;
+      z-index: 1000;
+      border-radius: 50px;
+    }
+    
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: var(--dark-color);
+      text-decoration: none;
+      font-size: 0.8rem;
+    }
+    
+    .nav-item i {
+      font-size: 1.4rem;
+      margin-bottom: 4px;
+    }
+    
+    .nav-item.active {
+      color: var(--primary-color);
+    }
+    .results-container, .history-container {
+    margin-top: 20px;
+}
+
+.result-item, .history-item {
+    display: flex;
+    align-items: center;
+    background-color: #1e1e1e;
+    border: 1px solid #00ffff;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    padding: 10px;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.result-item:hover,
+.history-item:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 20px #00ffff;
+}
+
+.result-item img,
+.history-item img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 15px;
+    border: 2px solid #00ffff;
+}
+.header1 {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 2rem;
+        background-color: rgba(0, 0, 0, 0.9);
+        position: fixed;
+        top: 0;
+        /* width: 100%; */
+        z-index: 1000;
+        backdrop-filter: blur(10px);
+        margin-left: 320px;
+        margin-right: 470px;
+    }
+
+    #arrow {
+        font-size: 1.8rem;
+        color: white;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    #arrow:hover {
+        transform: translateX(-3px);
+    }
+.history-item{
+    gap: 15px;
+}
+    </style>
+</head>
+<body>
+    <!-- <button class="mode-toggle" id="mode-toggle">🌙</button> -->
+    <div class="header1">
+        <i class="fas fa-arrow-left" id="arrow" onclick="window.history.back()" title="Back"></i>
+        <button class="mode-toggle" id="mode-toggle" style="margin-right: 310px;">🌙</button>
+        <button onclick="loadHistory()" style="margin-left: 500px; margin-top: 10px;" >History</button>
+
+    </div>
+    <div class="container">
+        <input type="text" id="searchBar" class="search-bar" placeholder="Search for users..." oninput="performSearch()">
+        <div id="resultsContainer" class="results-container">
+            <!-- Search results will appear here -->
+        </div>
+        <div id="noResultsMessage" class="no-results" style="display: none;">
+            No results found.
+        </div>
+        <div id="noQueryMessage" class="no-query" style="display: none;">
+            Please enter a search query.
+        </div>
+                <div id="searchHistory" class="history-container" style="color: white;"></div>
+
+    </div>
+    <nav class="bottom-nav">
+        <a href="{% url 'loginsuccess' %}" class="nav-item active">
+          <i class="fas fa-home"></i>
+          <span>Home</span>
+        </a>
+        <a href="{% url 'search' %}" class="nav-item">
+          <i class="fas fa-search"></i>
+          <span>Search</span>
+        </a>
+        
+        </div>
+        <a href="{% url 'notifications' %}" class="nav-item">
+          <i class="fas fa-heart"></i>
+          <span>Activity</span>
+        </a>
+        <a href="{% url 'profile' %}" class="nav-item">
+          <i class="fas fa-user"></i>
+          <span>Profile</span>
+        </a>
+      </nav>
+   <script>
+        const searchBar = document.getElementById('searchBar');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const noResultsMessage = document.getElementById('noResultsMessage');
+        const noQueryMessage = document.getElementById('noQueryMessage');
+
+        document.addEventListener("DOMContentLoaded", function () {
+            performSearch();
+        });
+
+        function performSearch() {
+            const query = searchBar.value.trim();
+            if (!query) {
+                resultsContainer.innerHTML = '';
+                noResultsMessage.style.display = 'none';
+                noQueryMessage.style.display = 'block';
+                return;
+            }
+
+            fetch(`/search/?query=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.results.length > 0) {
+                        resultsContainer.innerHTML = data.results.map(user => {
+                            // Determine button class and text based on follow status
+                            let buttonClass = '';
+                            let buttonText = 'Follow';
+
+                            if (user.is_following) {
+                                buttonText = 'Following';
+                                buttonClass = 'following';
+                            } else if (user.follows_you) {
+                                buttonText = 'Follow Back';
+                                buttonClass = 'follow-back';
+                            }
+
+                            return `
+  <div class="result-item">
+    <img src="${user.image_url}" alt="User Avatar" onclick="onUserClick('${user.username}', ${user.id})">
+    <span class="username" onclick="onUserClick('${user.username}', ${user.id})">${user.username}</span>
+    <button 
+      class="follow-button ${buttonClass}" 
+      onclick="toggleFollow(${user.id}, event)" 
+      id="followButton-${user.id}">
+      ${buttonText}
+    </button>
+  </div>
+`;
+
+
+
+                        }).join('');
+                        noResultsMessage.style.display = 'none';
+                        noQueryMessage.style.display = 'none';
+                    } else {
+                        resultsContainer.innerHTML = '';
+                        noResultsMessage.style.display = 'block';
+                        noQueryMessage.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    resultsContainer.innerHTML = '';
+                    noResultsMessage.style.display = 'block';
+                    noQueryMessage.style.display = 'none';
+                });
+        }
+        function viewProfile(userId) {
+            window.location.href = `/profile1/${userId}/`;
+        }
+
+        function toggleFollow(userId) {
+            // Prevent navigating to profile when clicking the button
+            event.stopPropagation();
+
+            const followButton = document.getElementById(`followButton-${userId}`);
+            const currentState = followButton.textContent.trim().toLowerCase();
+
+            // Get the CSRF token correctly - Django typically puts it in a cookie
+            const csrfToken = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('csrftoken='))
+                ?.split('=')[1] || '';
+
+            // Confirm unfollow if user is already following
+            if (currentState === 'following' || currentState === 'follow back') {
+                if (!confirm('Do you want to unfollow this user?')) return;
+            }
+
+            // Show loading state
+            const originalText = followButton.textContent;
+            followButton.textContent = '...';
+            followButton.disabled = true;
+
+            fetch(`/follow_user/${userId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin' // Important for sending cookies
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Update button text and styling based on the follow state
+                        updateFollowButtonState(followButton, data.followed, data.is_followed_back);
+
+                        // Update followers count if we're on a profile page
+                        const followersCountElement = document.querySelector('.stat-item:nth-child(2) span');
+                        if (followersCountElement) {
+                            followersCountElement.textContent = data.followers_count;
+                        }
+                    } else {
+                        alert(data.error || 'Something went wrong');
+                        // Reset to original state on error
+                        followButton.textContent = originalText;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to update follow status. Please try again.');
+                    // Reset to original state on error
+                    followButton.textContent = originalText;
+                })
+                .finally(() => {
+                    followButton.disabled = false;
+                });
+        }
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    cookie = cookie.trim();
+                    if (cookie.startsWith(name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function onUserClick(username, userId) {
+            if (!username || username.trim().length < 3) {
+                console.warn('Skipping save: query too short:', username);
+                window.location.href = `/profile1/${userId}/`;
+                return;
+            }
+
+            fetch('/save_search_history/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: `query=${encodeURIComponent(username)}`
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error('Failed to save search history:', data.error);
+                    }
+                    window.location.href = `/profile1/${userId}/`;
+                })
+                .catch(err => {
+                    console.error('Error saving search history:', err);
+                    window.location.href = `/profile1/${userId}/`;
+                });
+        }
+
+
+        // Helper function to update button state based on follow status
+        function updateFollowButtonState(button, isFollowing, isFollowedBack) {
+            // Reset classes first
+            button.classList.remove('following', 'follow-back');
+
+            if (isFollowing) {
+                button.textContent = 'Following';
+                button.classList.add('following');
+            } else if (isFollowedBack) {
+                button.textContent = 'Follow Back';
+                button.classList.add('follow-back');
+            } else {
+                button.textContent = 'Follow';
+            }
+        }
+
+        // Dark/Light Mode Toggle
+        const modeToggle = document.getElementById('mode-toggle');
+        modeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+            modeToggle.textContent = document.body.classList.contains('light-mode') ? '🌞' : '🌙';
+        });
+        function loadHistory() {
+            fetch('/get_search_history/')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.history.length > 0) {
+                        const historyHTML = data.history.map(item => `
+                    <div class="history-item">
+                        <img src="${item.image_url}" alt="Avatar">
+                        <span class="username" onclick="viewProfile(${item.user_id})"><strong>${item.username}</strong></span>
+                        <span class="timestamp">${item.timestamp}</span>
+                        <button onclick="deleteHistory(${item.id})">❌</button>
+                    </div>
+                `).join('');
+                        document.getElementById('searchHistory').innerHTML = historyHTML;
+                    } else {
+                        document.getElementById('searchHistory').innerHTML = '<p>No history found.</p>';
+                    }
+                });
+        }
+
+        function deleteHistory(id) {
+            fetch(`/delete_search_history/${id}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.cookie.split('; ').find(row => row.startsWith('csrftoken=')).split('=')[1],
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        loadHistory(); // Reload after deletion
+                    } else {
+                        alert(data.error || 'Error deleting history.');
+                    }
+                });
+        }
+
+    </script>
+</body>

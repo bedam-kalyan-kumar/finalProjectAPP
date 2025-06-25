@@ -1,0 +1,100 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'loginform.css' %}">
+</head>
+<body>
+    <div class="wrapper">
+        <div class="icon-and-header">
+            <div class="icon-container">
+                <div class="circle">
+                    <div class="outer-k">K
+                        <div class="inner-k">K</div>
+                    </div>
+                </div>
+            </div>
+            <div class="header">KITCHAT</div>
+        </div>
+        <form method="POST" action="{% url 'loginform' %}">
+            {% csrf_token %}
+            <div class="input-box">
+                <input type="text" name="username" id="username1" placeholder="Enter your username" required minlength="8">
+            </div>
+            <div class="input-box">
+                <input type="password" name="password" id="password1" placeholder="Enter your password" required minlength="8">
+                <span class="material-icons" id="visibility" onclick="visibility1()">visibility_off</span>
+            </div>
+            <div class="captcha-container">
+                <div class="captcha-display" id="captchaDisplay">{{ captcha_text }}</div>
+                <div class="captcha-input">
+                    <input type="text" name="captcha" placeholder="Enter CAPTCHA" required>
+                </div>
+                <i class="material-icons captcha-refresh" id="refreshCaptcha">refresh</i>
+                <i class="material-icons audio-captcha" id="audioCaptcha">volume_up</i>
+            </div>
+            <div class="remember-forgot">
+                <label><input type="checkbox" name="check"> Remember me</label>
+                <a href="{% url 'forget' %}">Forgot Password?</a>
+            </div>
+            <button type="submit" class="button">Login</button>
+            {% if error %}
+                <p style="color: red;">{{ error }}</p>
+            {% endif %}
+            <footer>
+                Not registered yet? <a href="{% url 'register' %}">Register account</a>
+            </footer>
+        </form>
+    </div>
+    {% if error %}
+    <div class="message error">{{ error }}</div>
+{% endif %}
+{% if success %}
+    <div class="message success">{{ success }}</div>
+{% endif %}
+
+    <script>
+        function visibility1() {
+            const eye = document.getElementById('password1');
+            const eyeon = document.getElementById('visibility');
+            if (eye.type === "password") {
+                eye.type = "text";
+                eyeon.textContent = "visibility";
+            } else {
+                eye.type = "password";
+                eyeon.textContent = "visibility_off";
+            }
+        }
+
+        document.getElementById('refreshCaptcha').addEventListener('click', function() {
+            fetch('/refresh-captcha/', {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('captchaDisplay').textContent = data.captcha_text;
+            });
+        });
+
+        document.getElementById('audioCaptcha').addEventListener('click', function() {
+            const captchaText = document.getElementById('captchaDisplay').textContent;
+            const utterance = new SpeechSynthesisUtterance(captchaText.split('').join(' '));
+            utterance.rate = 0.8;
+            speechSynthesis.speak(utterance);
+        });
+
+        document.querySelector('input[name="captcha"]').addEventListener('input', function () {
+            this.value = this.value.toUpperCase();
+        });
+    </script>
+</body>
+</html>

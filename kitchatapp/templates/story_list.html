@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stories</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .stories-container {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        .story {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid #ff4500;
+            cursor: pointer;
+        }
+        .story img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .story-viewer {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .story-content {
+            max-width: 400px;
+            max-height: 700px;
+        }
+        .nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.6);
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+        }
+        .nav-btn.left { left: 20px; }
+        .nav-btn.right { right: 20px; }
+    </style>
+</head>
+<body>
+    <div class="stories-container">
+        {% for user, stories in user_stories.items %}
+            <div class="story" onclick="openStory({{ forloop.counter0 }})">
+                {% if stories.0.image %}
+                    <img src="{{ stories.0.image.url }}" alt="{{ user.username }}">
+                {% elif stories.0.video %}
+                    <img src="/static/video-placeholder.jpg" alt="Video">
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="story-viewer" id="storyViewer">
+        <button class="nav-btn left" onclick="prevStory()">❮</button>
+        <div id="storyContent"></div>
+        <button class="nav-btn right" onclick="nextStory()">❯</button>
+    </div>
+
+    <script>
+        let storyData = {{ user_stories|safe }};
+        let userIndex = 0;
+        let storyIndex = 0;
+        let users = Object.keys(storyData);
+
+        function openStory(index) {
+            userIndex = index;
+            storyIndex = 0;
+            document.getElementById("storyViewer").style.display = "flex";
+            loadStory();
+        }
+
+        function loadStory() {
+            let user = users[userIndex];
+            let stories = storyData[user];
+            let storyContentDiv = document.getElementById("storyContent");
+
+            if (stories && stories.length > storyIndex) {
+                let story = stories[storyIndex];
+
+                if (story.image) {
+                    storyContentDiv.innerHTML = `<img src="${story.image}" class="story-content" alt="Story">`;
+                } else if (story.video) {
+                    storyContentDiv.innerHTML = `<video controls autoplay class="story-content">
+                        <source src="${story.video}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>`;
+                }
+            } else {
+                nextUser();
+            }
+        }
+
+        function nextStory() {
+            let user = users[userIndex];
+            let stories = storyData[user];
+
+            if (stories.length > storyIndex + 1) {
+                storyIndex++;
+            } else {
+                nextUser();
+            }
+            loadStory();
+        }
+
+        function prevStory() {
+            if (storyIndex > 0) {
+                storyIndex--;
+            } else {
+                prevUser();
+            }
+            loadStory();
+        }
+
+        function nextUser() {
+            if (userIndex < users.length - 1) {
+                userIndex++;
+                storyIndex = 0;
+                loadStory();
+            } else {
+                closeViewer();
+            }
+        }
+
+        function prevUser() {
+            if (userIndex > 0) {
+                userIndex--;
+                storyIndex = storyData[users[userIndex]].length - 1;
+                loadStory();
+            }
+        }
+
+        function closeViewer() {
+            document.getElementById("storyViewer").style.display = "none";
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Change Password</title>
+    <style>
+        /* General Styling */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background-color: #eef1f7;
+        }
+
+        form {
+            background-color: #ffffff;
+            padding: 30px 40px;
+            width: 100%;
+            max-width: 450px;
+            border-radius: 10px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        h2 {
+            margin-bottom: 25px;
+            color: #333;
+            text-align: center;
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            margin-top: 20px;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Spinner */
+        .hidden { display: none; }
+
+        .loading-spinner {
+            border: 3px solid #ccc;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg);}
+            100% { transform: rotate(360deg);}
+        }
+
+        .tick-icon {
+            color: green;
+            font-size: 18px;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .status-msg {
+            font-size: 0.9rem;
+            margin-top: 5px;
+            text-align: left;
+        }
+
+        .status-msg.success {
+            color: green;
+        }
+
+        .status-msg.error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <form method="post" id="changepass-form">
+        <h2>Change Password</h2>
+        {% csrf_token %}
+        
+        <label>Username:</label>
+        <input type="text" name="username" value="{{ username }}" readonly>
+
+        <label for="old_password">Old Password:</label>
+        <input type="password" name="old_password" id="old_password" required>
+        <span id="loading" class="hidden loading-spinner"></span>
+        <span id="tick" class="hidden tick-icon">&#10003;</span>
+        <div id="verify-msg" class="status-msg"></div>
+
+        <div id="new-password-fields" class="hidden">
+            <label for="new_password">New Password:</label>
+            <input type="password" name="new_password" placeholder="Enter new password" required>
+            <button type="submit">Reset Password</button>
+        </div>
+    </form>
+
+    <script>
+        const oldPasswordInput = document.getElementById('old_password');
+        const loading = document.getElementById('loading');
+        const tick = document.getElementById('tick');
+        const verifyMsg = document.getElementById('verify-msg');
+        const newPasswordFields = document.getElementById('new-password-fields');
+
+        let passwordVerified = false;
+
+        oldPasswordInput.addEventListener('input', () => {
+            if (passwordVerified) return; // Do nothing if already verified
+
+            const oldPassword = oldPasswordInput.value;
+            if (oldPassword.length < 4) {
+                verifyMsg.textContent = '';
+                return;
+            }
+
+            loading.classList.remove('hidden');
+            tick.classList.add('hidden');
+            verifyMsg.textContent = '';
+
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            fetch("{% url 'verify_old_password' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: `old_password=${encodeURIComponent(oldPassword)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.classList.add('hidden');
+                if (data.valid) {
+                    passwordVerified = true;
+                    tick.classList.remove('hidden');
+                    verifyMsg.textContent = 'Old password correct';
+                    verifyMsg.className = 'status-msg success';
+                    newPasswordFields.classList.remove('hidden');
+                } else {
+                    tick.classList.add('hidden');
+                    verifyMsg.textContent = 'Incorrect old password';
+                    verifyMsg.className = 'status-msg error';
+                    newPasswordFields.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

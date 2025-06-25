@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  {% load static %}
+  {% load humanize user_status %}
+
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Success - Instagram-like Page</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+ <link rel="stylesheet" href="{% static 'loginsuccess.css' %}">
+</head>
+
+<body>
+  {{ form.as_p }}
+  <div class="middle">
+    <!-- Top Navigation -->
+    <div class="top-nav">
+      <i class="fas fa-bolt"></i> KITCHAT
+<i class="fas fa-paper-plane" id="k1" onclick="window.location.href='{% url 'messages' %}'" style="float: right; cursor: pointer;">
+  <span id="message-dot" class="notification-dot" style="display: none;"></span>
+</i>      <span id="message-dot" class="notification-dot" style="display: none;"></span>
+    </div>
+
+    <div class="stories-section">
+      <!-- Your Story -->
+      <div class="story-container your-story" onclick="window.location.href='{% url 'upload_story' %}'">
+        <div style="position: relative;">
+          <img src="{{ image_url|default:'/static/default-avatar.png' }}" alt="Your Story" class="story-avatar">
+          <div class="add-icon">
+            <i class="fas fa-plus"></i>
+          </div>
+        </div>
+        <div class="story-username">{{username}}</div>
+        
+      </div>
+  
+      <!-- Other Users' Stories -->
+      <div class="stories-section">
+        {% for user_story in stories %}
+            <!-- Display only ONE icon per user -->
+            <div class="story-container" onclick="viewStory('{{ user_story.stories.0.id }}')" 
+     data-story-id="{{ user_story.stories.0.id }}" 
+     data-username="{{ user_story.username }}">
+    <img src="{{ user_story.user_image_url }}" 
+         alt="{{ user_story.username }}" 
+         class="story-avatar">
+         
+    <div class="story-username">{{ user_story.username }}</div>
+</div>
+        {% endfor %}
+    </div>
+    </div>
+    <!-- Modal for Viewing Stories -->
+    <div id="storyModal" style="display: none;">
+        <div id="storyModalContent">
+            <button onclick="closeStoryModal()" 
+                    style="position: absolute; top: 10px; right: 10px; background: red; color: white; border: none; padding: 5px 10px; cursor: pointer; z-index: 10;">
+                ✖
+            </button>
+            <div id="story-container"></div>
+            <button onclick="nextStory()" id="nextStoryBtn" 
+                    style="position: absolute; bottom: 10px; right: 10px; background: white; color: black; border: none; padding: 5px 10px; cursor: pointer; z-index: 10;">
+                ▶ Next
+                
+            </button>
+        </div>
+    </div>
+    
+
+
+
+
+    <!-- Posts Section -->
+    <div class="posts-section">
+      {% for post in posts %}
+      <div class="post" id="post-{{ post.id }}">
+        <!-- Post Header -->
+        <!-- loginsuccess.html -->
+        <div class="post-header">
+          <img src="{{ post.user_image_url|default:'/static/default-avatar.png' }}" alt="Profile" class="profile-image">
+          <div class="username" >{{ post.user }}</div>
+          
+          <button class="action-btn follow-btn" id="followButton-{{ post.user.id }}"
+            onclick="event.stopPropagation(); toggleFollow({{ post.user.id }})">
+            {% if post.user.id in current_user_following_ids %}Following{% else %}Follow{% endif %}
+          </button>
+        </div>
+
+        <!-- Post Media -->
+        <div class="video1">
+          {% if post.video_url %}
+          <video controls>
+            <source src="{{ post.video_url }}" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+          {% endif %}
+        </div>
+
+        <!-- Post Content -->
+        <div class="post-content" ondblclick="doubleClickLike({{ post.id }})" style="position: relative;">
+          <img src="{{ post.image_url|default:'/static/default-post.png' }}" alt="Post Image" class="post-image">
+          <i class="fas fa-heart animated-heart" id="animated-heart-{{ post.id }}" style="display: none;"></i>
+          <p>{{ post.caption }}</p>
+        </div>
+
+        <!-- Post Actions -->
+        <div class="post-actions">
+          <i class="fas fa-heart" id="like-icon-{{ post.id }}" onclick="toggleLike({{ post.id }})"></i>
+          <i class="fas fa-comment comment-icon" onclick="toggleCommentInput({{ post.id }})"></i>
+          <i class="fas fa-share share-icon" onclick="openShareDialog({{ post.id }})"></i>  
+           
+            </div>
+      
+      <div class="counts" id="counts-{{ post.id }}" style="display: flex; justify-content: space-between;">
+          <p id="like-count-{{ post.id }}">Likes: {{ post.likes.count }}</p>
+          <p id="comment-count-{{ post.id }}">Comments: {{ post.comments.count }}</p>
+          <!-- <p id="share-count-{{ post.id }}">Shares: {{ post.shares_count }}</p> -->
+          <p id="share-count-{{ post.id }}">Share</p>
+
+
+
+      </div>
+      
+      <!-- Comments Section -->
+      <div id="comment-section-{{ post.id }}" style="display: none;">
+          <ul id="comment-list-{{ post.id }}"></ul>
+      </div>
+      
+      <!-- See All Comments Button -->
+      <button class="show-comments-btn" id="show-comments-btn-{{ post.id }}" onclick="loadComments({{ post.id }})">
+    See All Comments
+</button>
+
+      
+        
+        <!-- Add Comment Section -->
+        <textarea id="comment-input-{{ post.id }}"  style="display: none;color: black;" placeholder="drop a comment" > </textarea>
+        <button id="comment-button-{{ post.id }}" style="display: none;" onclick="addComment({{ post.id }})">Post Comment</button>
+      </div>
+
+    </div>
+
+  {% endfor %}
+  </div>
+<p id="end">end...</p>
+<p id="end">end...</p>
+<p id="end">end...</p>
+<style>
+  #end{
+    text-align: center;
+  }
+</style>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <a href="{% url 'loginsuccess' %}" class="nav-item active">
+      <i class="fas fa-home"></i>
+      <span>Home</span>
+    </a>
+    <a href="{% url 'search' %}" class="nav-item">
+      <i class="fas fa-search"></i>
+      <span>Search</span>
+    </a>
+    <div class="nav-item" onclick="openCreateModal()">
+      <i class="fas fa-plus-square"></i>
+      <span>Create</span>
+    </div>
+    <!-- Bottom Navigation - Activity/Notifications Link -->
+<a href="{% url 'notifications' %}" class="nav-item" style="position: relative;">
+  <i class="fas fa-heart" style="color: black;"></i>
+  <span id="notification-dot" class="notification-dot" style="display: none;"></span>
+  <span>Activity</span>
+</a>
+    <a href="{% url 'profile' %}" class="nav-item">
+      <i class="fas fa-user"></i>
+      <span>Profile</span>
+    </a>
+  </nav>
+
+  <!-- Story Modal -->
+  
+
+  <!-- Create Post Modal -->
+  <div id="createModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeCreateModal()">&times;</span>
+      <h2 class="modal-title">Create New Post</h2>
+
+      <form id="uploadForm" method="POST" enctype="multipart/form-data" action="{% url 'create_post' %}">
+        {% csrf_token %}
+
+        <!-- Upload Type Toggle -->
+        <div class="toggle-buttons">
+          <input type="radio" id="imageType" name="upload_type" value="image" checked onclick="toggleUploadType()">
+          <label for="imageType">Photo</label>
+          <input type="radio" id="videoType" name="upload_type" value="video" onclick="toggleUploadType()">
+          <label for="videoType">Video</label>
+        </div>
+
+        <!-- Image Upload -->
+        <div id="imageInput" class="file-upload">
+          <label for="image" class="file-upload-label">
+            <i class="fas fa-image"></i> Select Photo
+          </label>
+          <input type="file" id="image" name="image" accept="image/*" onchange="previewFile(this)" style="display: none;">
+        </div>
+
+        <!-- Video Upload -->
+        <div id="videoInput" class="file-upload" style="display: none;">
+          <label for="video" class="file-upload-label">
+            <i class="fas fa-video"></i> Select Video
+          </label>
+          <input type="file" id="video" name="video" accept="video/*" onchange="previewFile(this)" style="display: none;">
+        </div>
+
+        <!-- Preview -->
+        <div id="preview" class="preview-box"></div>
+
+        <!-- Caption -->
+        <textarea name="caption" placeholder="Write a caption..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; margin: 10px 0; resize: none;"></textarea>
+
+        <!-- Submit Button -->
+        <button type="submit" class="upload-btn">Share</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Success Animation -->
+  <div id="successOverlay" class="success-overlay">
+    <div class="checkmark-container">
+      <div class="checkmark-circle">
+        <div class="checkmark"></div>
+      </div>
+      <div class="success-text">Post Shared Successfully!</div>
+    </div>
+  </div>
+
+  <!-- <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const username = "{{ username|escapejs }}";
+        if (username) {
+            const message = `Welcome  ${username}`;
+            const speech = new SpeechSynthesisUtterance(message);
+            speech.lang = 'en-US';
+            speech.pitch = 1;
+            speech.rate = 1;
+            speechSynthesis.speak(speech);
+        }
+    });
+  </script> -->
+
+  <script>
+    
+    document.cookie = "csrftoken={{ csrf_token }}";
+    function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
+function openCreateModal() {
+        document.getElementById("createModal").style.display = "block";
+    }
+    function closeCreateModal() {
+        document.getElementById("createModal").style.display = "none";
+        document.getElementById("preview").innerHTML = "";
+        document.getElementById("image").value = "";
+        document.getElementById("video").value = "";
+    }
+
+    function toggleUploadType() {
+        const type = document.querySelector('input[name="upload_type"]:checked').value;
+        document.getElementById("imageInput").style.display = type === "image" ? "block" : "none";
+        document.getElementById("videoInput").style.display = type === "video" ? "block" : "none";
+        document.getElementById("preview").innerHTML = "";
+        document.getElementById("image").value = "";
+        document.getElementById("video").value = "";
+    }
+
+    function previewFile(input) {
+        const file = input.files[0];
+        const preview = document.getElementById("preview");
+        preview.innerHTML = "";
+
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                if (file.type.startsWith("image")) {
+                    const img = document.createElement("img");
+                    img.src = e.target.result;
+                    preview.appendChild(img);
+                } else if (file.type.startsWith("video")) {
+                    const video = document.createElement("video");
+                    video.src = e.target.result;
+                    video.controls = true;
+                    preview.appendChild(video);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function validateUpload() {
+        const type = document.querySelector('input[name="upload_type"]:checked').value;
+        const imageInput = document.getElementById("image");
+        const videoInput = document.getElementById("video");
+
+        if (type === "image" && !imageInput.files.length) {
+            alert("Please select an image to upload.");
+            return false;
+        }
+
+        if (type === "video" && !videoInput.files.length) {
+            alert("Please select a video to upload.");
+            return false;
+        }
+
+        return true;
+    }
+
+    window.onclick = function(event) {
+        let modal = document.getElementById("createModal");
+        if (event.target === modal) {
+            closeCreateModal();
+        }
+    };
+    // Utility to get CSRF token
+    function getCSRFToken() {
+      return document.cookie.split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1] || '';
+    }
+
+    const csrftoken = getCSRFToken();
+
+    // Fetch and update likes count
+    function fetchLikeCounts() {
+      fetch('/get_likes/')
+        .then(response => response.json())
+        .then(data => {
+          data.posts.forEach(post => {
+            const likeCountElem = document.getElementById(`like-count-${post.id}`);
+            const likeIcon = document.getElementById(`like-icon-${post.id}`);
+
+            if (likeCountElem) likeCountElem.textContent = `Likes: ${post.likes_count}`;
+            if (likeIcon) {
+              likeIcon.classList.toggle('liked', post.liked);
+              likeIcon.style.color = post.liked ? '#d81b60' : '#6a1b9a';
+            }
+          });
+        })
+        .catch(error => console.error('Error fetching like counts:', error));
+    }
+
+    document.addEventListener("DOMContentLoaded", fetchLikeCounts);
+    // document.addEventListener("DOMContentLoaded", fetchCounts);
+    document.addEventListener("DOMContentLoaded", () => {
+      fetchLikeCounts();
+      fetchCommentCounts();
+});
+function fetchCommentCounts() {
+    fetch('/get_comments_count/')
+        .then(response => response.json())
+        .then(data => {
+            data.posts.forEach(post => {
+                const commentCountElem = document.getElementById(`comment-count-${post.id}`);
+                if (commentCountElem) {
+                    commentCountElem.textContent = `Comments: ${post.comments_count}`;
+                }
+            });
+        })
+        .catch(error => console.error('Error fetching comment counts:', error));
+}
+
+// Call fetchCommentCounts on page load
+document.addEventListener("DOMContentLoaded", fetchCommentCounts);
+
+    // Call fetchCounts on page load
+    // document.addEventListener("DOMContentLoaded", fetchCounts);
+    // Toggle like
+    function toggleLike(postId) {
+      fetch(`/toggle_like/${postId}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken }
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const likeIcon = document.getElementById(`like-icon-${postId}`);
+            const likeCount = document.getElementById(`like-count-${postId}`);
+
+            likeIcon.classList.toggle('liked', data.liked);
+            likeIcon.style.color = data.liked ? '#d81b60' : '#6a1b9a';
+            likeCount.textContent = `Likes: ${data.likes_count}`;
+          } else {
+            alert(data.message);
+          }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    // Toggle comment input visibility
+    // Toggle comment input visibility
+    function toggleCommentInput(postId) {
+      const input = document.getElementById(`comment-input-${postId}`);
+      const button = document.getElementById(`comment-button-${postId}`);
+      input.style.display = input.style.display === 'none' ? 'block' : 'none';
+      button.style.display = button.style.display === 'none' ? 'block' : 'none';
+    }
+    function loadComments(postId) {
+    fetch(`/get_comments/${postId}/`)
+        .then(response => response.json())
+        .then(data => {
+            const commentList = document.getElementById(`comment-list-${postId}`);
+            if (!commentList) return;
+
+            commentList.innerHTML = "";  // Clear previous comments
+
+            if (data.comments.length > 0) {
+                data.comments.forEach(comment => {
+                    const commentItem = document.createElement('li');
+                    commentItem.id = `comment-${comment.comment_id}`;
+                    commentItem.innerHTML = `<strong>${comment.username}:</strong> ${comment.content} 
+                        <span class="delete-comment" onclick="deleteComment(${comment.comment_id})">Delete</span>`;
+                    commentList.appendChild(commentItem);
+                });
+            } else {
+                commentList.innerHTML = "<li>No comments yet.</li>";
+            }
+
+            // Show the comment section
+            document.getElementById(`comment-section-${postId}`).style.display = 'block';
+
+            // Hide "See All Comments" button after loading comments
+            const showCommentsBtn = document.getElementById(`show-comments-btn-${postId}`);
+            if (showCommentsBtn) showCommentsBtn.style.display = 'none';
+
+            // Show "Close Comments" button
+            let closeCommentsBtn = document.getElementById(`close-comments-btn-${postId}`);
+            if (!closeCommentsBtn) {
+                closeCommentsBtn = document.createElement('button');
+                closeCommentsBtn.id = `close-comments-btn-${postId}`;
+                closeCommentsBtn.textContent = "Close Comments";
+                closeCommentsBtn.className = "close-comments-btn";
+                closeCommentsBtn.onclick = function() { closeComments(postId); };
+                document.getElementById(`comment-section-${postId}`).appendChild(closeCommentsBtn);
+            }
+            closeCommentsBtn.style.display = 'block';
+        })
+        .catch(error => console.error('Error loading comments:', error));
+}
+
+// Function to close comments
+function closeComments(postId) {
+    document.getElementById(`comment-section-${postId}`).style.display = 'none';
+    
+    // Show "See All Comments" button again
+    const showCommentsBtn = document.getElementById(`show-comments-btn-${postId}`);
+    if (showCommentsBtn) showCommentsBtn.style.display = 'block';
+
+    // Hide "Close Comments" button
+    const closeCommentsBtn = document.getElementById(`close-comments-btn-${postId}`);
+    if (closeCommentsBtn) closeCommentsBtn.style.display = 'none';
+}
+
+
+
+
+
+    // Add a comment
+    function addComment(postId) {
+      const input = document.getElementById(`comment-input-${postId}`);
+      const content = input.value.trim();
+      if (!content) return;
+
+      fetch('/add_comment/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({ post_id: postId, content: content })
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            input.value = '';
+
+            // Append new comment
+            const commentList = document.getElementById(`comment-list-${postId}`);
+            const newComment = document.createElement('li');
+            newComment.innerHTML = `<strong>${data.username}:</strong> ${data.content} 
+                <span class="delete-comment" onclick="deleteComment(${data.comment_id})">Delete</span>`;
+            commentList.appendChild(newComment);
+
+            // Update comment count
+            document.getElementById(`comment-count-${postId}`).textContent = `Comments: ${data.comments_count}`;
+          }
+        });
+    }
+    // Delete a comment
+    function deleteComment(commentId) {
+    fetch(`/delete_comment/${commentId}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const commentElem = document.getElementById(`comment-${commentId}`);
+            if (commentElem) {
+                const postElem = commentElem.closest('.post');
+                commentElem.remove();
+
+                if (postElem) {
+                    const postId = postElem.id.split('-')[1];
+                    const commentCount = document.getElementById(`comment-count-${postId}`);
+                    if (commentCount) commentCount.textContent = `Comments: ${data.comments_count}`;
+                }
+            }
+        } else {
+            alert(data.error);  // Show error if user doesn't have permission
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+// Check for new notifications every 30 seconds
+// Modified check functions to show counts
+// Modified check functions to show counts
+function checkNewNotifications() {
+    fetch('/check_new_notifications/')
+        .then(response => response.json())
+        .then(data => {
+            const notificationDot = document.getElementById('notification-dot');
+            if (data.unseen_count > 0) {
+                notificationDot.textContent = data.unseen_count;
+                notificationDot.style.display = 'flex';
+            } else {
+                notificationDot.style.display = 'none';
+            }
+        })
+        .catch(error => console.error('Error checking notifications:', error));
+}
+
+function checkNewMessages() {
+    fetch('/check_new_messages/')
+        .then(response => response.json())
+        .then(data => {
+            const messageDot = document.getElementById('message-dot');
+            if (data.unseen_count > 0) {
+                messageDot.textContent = data.unseen_count;
+                messageDot.style.display = 'flex';
+            } else {
+                messageDot.style.display = 'none';
+            }
+        })
+        .catch(error => console.error('Error checking messages:', error));
+}
+// Initial check when page loads
+document.addEventListener("DOMContentLoaded", () => {
+    checkNewNotifications();
+    checkNewMessages();
+    setInterval(checkNewNotifications, 30000);
+    setInterval(checkNewMessages, 30000);
+});
+checkNewNotifications();
+checkNewMessages();
+// Then check every 30 seconds
+
+function toggleFollow(userId) {
+  // Prevent navigation if clicked within a clickable parent
+  event.stopPropagation();
+  
+  const followButton = document.getElementById(`followButton-${userId}`);
+  const csrfToken = getCSRFToken();
+  
+  // Store original button state
+  const originalText = followButton.textContent;
+  
+  // Show loading state
+  followButton.textContent = '...';
+  followButton.disabled = true;
+  
+  // Confirm before unfollowing if currently following
+  if (originalText === 'Following' && !confirm('Do you want to unfollow this user?')) {
+    followButton.textContent = originalText;
+    followButton.disabled = false;
+    return;
+  }
+
+  fetch(`/follow_user/${userId}/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': csrfToken,
+      'Content-Type': 'application/json',
+    },
+  })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        // Update follow button text and class
+        if (followButton) {
+          followButton.textContent = data.followed ? 'Following' : 'Follow';
+          followButton.classList.toggle('following', data.followed);
+          
+          // Handle "Follow Back" state if the API provides this info
+          if (data.follows_you && !data.followed) {
+            followButton.textContent = 'Follow Back';
+            followButton.classList.add('follow-back');
+          }
+        }
+        
+        // Update followers count on the profile page
+        const followersCount = document.getElementById('followers-count');
+        if (followersCount) {
+          followersCount.textContent = data.followers_count;
+        }
+      } else {
+        alert(data.error || 'Something went wrong');
+        // Reset to original state on error
+        if (followButton) {
+          followButton.textContent = originalText;
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Failed to update follow status');
+      // Reset to original state on error
+      if (followButton) {
+        followButton.textContent = originalText;
+      }
+    })
+    .finally(() => {
+      if (followButton) {
+        followButton.disabled = false;
+      }
+    });
+}
+// In your notifications.html
+document.addEventListener('DOMContentLoaded', function() {
+    // Mark all notifications as seen when page loads
+    fetch('/mark_notifications_seen/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        }
+    });
+    
+    // Add click handlers for individual notifications
+    document.querySelectorAll('.notification').forEach(notification => {
+        notification.addEventListener('click', function() {
+            const notificationId = this.dataset.id;
+            fetch(`/mark_notification_seen/${notificationId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json',
+                }
+            });
+        });
+    });
+});
+
+// Make sure this function exists to get the CSRF token
+function getCSRFToken() {
+  // Try to get from meta tag first
+  const metaTag = document.querySelector('meta[name="csrf-token"]');
+  if (metaTag) {
+    return metaTag.getAttribute('content');
+  }
+  
+  // Fall back to cookie if meta tag isn't available
+  return document.cookie
+    .split('; ')
+    .find(row => row.startsWith('csrftoken='))
+    ?.split('=')[1] || '';
+}
+    
+    
+    
+    document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".story").forEach(story => {
+        story.addEventListener("click", function () {
+            const storyId = this.getAttribute("data-story-id");
+
+            if (!storyId || storyId.trim() === "") {
+                console.error("❌ Story ID NOT FOUND in HTML!");
+            } else {
+                console.log(`✅ Story clicked! Story ID: ${storyId}`);
+                viewStory(storyId); // Call function to fetch story
+            }
+        });
+    });
+});
+
+
+let currentIndex = 0;
+let currentStories = [];
+function viewStory(storyId) { 
+  const username = document.querySelector(`[data-story-id="${storyId}"]`).getAttribute('data-username');
+    if (username) {
+        window.location.href = `/stories/${username}/`;
+    }
+}
+    
+
+    function displayStory() {
+            let storyContainer = document.getElementById("story-container");
+            storyContainer.textContent = user_story.stories[currentIndex].content;
+        }
+
+        function nextStory() {
+            currentIndex = (currentIndex + 1) % user_story.stories.length; // Loops back to first story
+            displayStory();
+        }
+
+        // Initial display
+        displayStory();
+
+function closeStoryModal() {
+    document.getElementById("storyModal").style.display = "none";
+    const videos = document.querySelectorAll('#storyModal video');
+      videos.forEach(video => video.pause());
+    currentStories = [];
+    currentIndex = 0;
+}
+
+
+
+    // Close modal when clicking outside
+    window.addEventListener("click", function(event) {
+      const modal = document.getElementById('storyModal');
+      if (event.target === modal) {
+        closeStoryModal();
+      }
+    });
+
+
+// Handling an external button click (if applicable)
+document.addEventListener("DOMContentLoaded", function() {
+    let button = document.getElementById("yourButtonId");
+    if (button) {
+        button.onclick = function() {
+            let storyId = this.getAttribute("data-story-id");
+            if (storyId) {
+                viewStory(storyId);
+            } else {
+                console.error("Error: No story ID found on the button.");
+            }
+        };
+    }
+});
+
+
+
+
+    function reactToStory(storyId) {
+      fetch(`/react_to_story/${storyId}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken }
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const reactionButton = document.getElementById(`reaction-button-${storyId}`);
+            reactionButton.classList.toggle('reacted', data.reacted);
+          }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function sendStoryMessage(storyId) {
+      const messageInput = document.getElementById(`story-message-input-${storyId}`);
+      const messageContent = messageInput.value.trim();
+      if (!messageContent) return;
+
+      fetch(`/send_story_message/${storyId}/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({ content: messageContent })
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            messageInput.value = '';
+            const messageList = document.getElementById(`story-message-list-${storyId}`);
+            const newMessage = document.createElement('li');
+            newMessage.textContent = `${data.username}: ${messageContent}`;
+            messageList.appendChild(newMessage);
+          }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+    function openShareDialog(postId) {
+    window.location.href = `/share_post/${postId}/`;
+}
+// function shareMessage(messageId, recipientId, postId) {
+//     fetch(`/share-message/${messageId}/`, {
+//         method: "POST",
+//         headers: {
+//             "Content-Type": "application/json",
+//             "X-CSRFToken": getCSRFToken(),
+//         },
+//         body: JSON.stringify({ recipient_id: recipientId }),
+//     })
+//     .then(response => response.json())
+//     .then(data => {
+//         if (data.status === "success") {
+//             alert("Message shared successfully!");
+
+//             // Update the share count in the UI
+//             const shareCountElement = document.getElementById(`share-count-${postId}`);
+//             if (shareCountElement) {
+//                 shareCountElement.innerText = `Shares: ${data.shares_count}`;
+//             }
+//         } else {
+//             alert("Error sharing message.");
+//         }
+//     });
+// }
+// Check for new messages every 30 seconds
+
+// Check immediately(); when page loads
+
+
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load custom_tags %}
+    {% load static %}
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ username }}'s Stories</title>
+    <link rel="stylesheet" href="{% static 'view_story.css' %}">
+
+</head>
+<body>
+    <div class="story-container">
+        <div class="progress-bars" id="progress-bars"></div>
+        
+        <div class="story-header">
+            <div class="user-info">
+                <img src="{% if user_story.profile_picture %}{{ user_story.profile_picture.url }}{% else %}{% static 'default-avatar.jpg' %}{% endif %}" 
+     alt="{{ username }}" 
+     class="user-avatar">
+                <div style="display: flex; flex-direction: column;">
+                    <span>{{ username }}</span>
+                    <small style="font-size: 10px; color: gray;">
+                        {% with story_time=stories.0.created_at %}
+                            {{ story_time|timesince }} ago
+                        {% endwith %}
+                    </small>
+                </div>
+            </div>
+            {% if request.user.id == user_story.id %}
+                <button class="delete-btn" onclick="deleteStory(stories[currentStoryIndex].id)">Delete</button>
+            {% endif %}
+        </div>
+
+        <div class="close-btn" onclick="window.history.back()">×</div>
+
+        <div id="story-content"></div>
+        
+        <!-- Story caption -->
+        <div class="story-caption" id="story-caption"></div>
+        
+        <!-- Poll container -->
+        <div class="poll-container" id="poll-container" style="display: none;">
+            <div class="poll-question">Which do you prefer?</div>
+            <div class="poll-option" onclick="votePoll(0)">Option 1</div>
+            <div class="poll-option" onclick="votePoll(1)">Option 2</div>
+            <div class="poll-results" id="poll-results">
+                <div>Option 1: <span id="poll-result-1">0%</span></div>
+                <div class="poll-bar" id="poll-bar-1"></div>
+                <div>Option 2: <span id="poll-result-2">0%</span></div>
+                <div class="poll-bar" id="poll-bar-2"></div>
+            </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="action-buttons">
+            <button class="action-btn" onclick="toggleEmojiPicker()">😀</button>
+            <button class="action-btn" onclick="sendLike()">❤️</button>
+            <button class="action-btn" onclick="shareStory()">↗️</button>
+        </div>
+
+        <!-- Emoji picker -->
+        <div class="emoji-picker" id="emoji-picker">
+            <span class="emoji-option" onclick="addReaction('❤️')">❤️</span>
+            <span class="emoji-option" onclick="addReaction('😂')">😂</span>
+            <span class="emoji-option" onclick="addReaction('😮')">😮</span>
+            <span class="emoji-option" onclick="addReaction('😢')">😢</span>
+            <span class="emoji-option" onclick="addReaction('👍')">👍</span>
+        </div>
+
+        <!-- Reaction container -->
+        <div class="reaction-container" id="reaction-container"></div>
+
+        <!-- Reply box -->
+        <div class="reply-box">
+            <input type="text" class="reply-input" placeholder="Send message" id="reply-input">
+            <button class="send-reply" onclick="sendReply()">↑</button>
+        </div>
+
+        {% if request.user.id == user_story.id %}
+            <button class="viewers-btn" onclick="showViewersList()">👁️ See Viewers</button>
+        {% endif %}
+
+        <div class="navigation prev" onclick="prevStory()"></div>
+        <div class="navigation next" onclick="nextStory()"></div>
+
+        <!-- Enhanced Viewers List -->
+        <div class="viewers-list" id="viewers-list">
+            <div class="viewers-header">
+                <h3>Viewers</h3>
+                <div class="close-viewers" onclick="hideViewersList()">✖</div>
+            </div>
+            <div id="viewer-names" class="viewers-container"></div>
+        </div>
+    </div>
+
+    <!-- Story interaction panel -->
+    <div class="story-interaction-panel">
+        <div class="reaction-buttons">
+            {% for code, emoji in reaction_choices %}
+                <button class="reaction-btn" data-reaction="{{ code }}" onclick="reactToStory(stories[currentStoryIndex].id, '{{ code }}')">
+                    {{ emoji }}
+                </button>
+            {% endfor %}
+        </div>
+        
+        <div class="story-message-form">
+            <form id="story-message-form" data-story-id="{{ stories.0.id }}">
+                {% csrf_token %}
+                <input type="text" name="message" placeholder="Reply to story..." required>
+                <button type="submit">Send</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function getCSRFToken() {
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    
+    return cookieValue || '';
+}
+
+        const stories = [
+            {% for story in stories %}
+            {
+                id: "{{ story.id }}",
+                image: "{% if story.image %}{{ story.image.url }}{% endif %}",
+                video: "{% if story.video %}{{ story.video.url }}{% endif %}",
+                duration: 5000,
+                viewed: {% if request.user in story.viewers.all %}true{% else %}false{% endif %},
+                caption: "{{ story.caption|default:''|escapejs }}",
+                hasPoll: {% if story.poll %}true{% else %}false{% endif %},
+                poll: {% if story.poll %}{
+                    question: "{{ story.poll.question|escapejs }}",
+                    options: [
+                        {% for option in story.poll.options.all %}
+                        {
+                            text: "{{ option.text|escapejs }}",
+                            votes: {{ option.votes.count }},
+                            voted: {% if request.user in option.votes.all %}true{% else %}false{% endif %}
+                        }{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ]
+                }{% else %}null{% endif %},
+                reactions: [
+                    {% for reaction in story.reactions.all %}
+                    {
+                        user: "{{ reaction.user.username|escapejs }}",
+                        emoji: "{{ reaction.emoji|escapejs }}"
+                    }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                // Add viewers data with reactions
+                viewers: [
+                    {% for viewer_data in viewers_data|get_item:story.id %}
+                    {
+                        username: "{{ viewer_data.username|escapejs }}",
+                        profile_pic: "{{ viewer_data.profile_pic|escapejs }}",
+                        viewed_at: "{{ viewer_data.viewed_at|escapejs }}",
+                        reaction: "{{ viewer_data.reaction|escapejs }}",
+                        reaction_type: "{{ viewer_data.reaction_type|escapejs }}"
+                    }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ]
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        let currentStoryIndex = 0;
+        let progressInterval;
+        let likeTimeout;
+        let tapCount = 0;
+        let tapTimeout;
+
+        function reactToStory(storyId, reactionType) {
+            const formData = new FormData();
+            formData.append('reaction_type', reactionType);
+            
+            fetch(`/stories/${storyId}/react/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCSRFToken()
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update UI to show reaction was registered
+                    document.querySelectorAll('.reaction-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    document.querySelector(`.reaction-btn[data-reaction="${reactionType}"]`).classList.add('active');
+                    
+                    // Show confirmation
+                    showNotification("Reaction sent!", "success");
+                } else {
+                    showNotification("Failed to react to story", "error");
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification("An error occurred", "error");
+            });
+        }
+        
+        // Set up story message form
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageForm = document.querySelector('#story-message-form');
+            if (messageForm) {
+                messageForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const storyId = stories[currentStoryIndex].id;
+                    const messageInput = this.querySelector('input[name="message"]');
+                    const message = messageInput.value.trim();
+                    
+                    if (!message) return;
+                    
+                    const formData = new FormData();
+                    formData.append('message', message);
+                    
+                    fetch(`/stories/${storyId}/message/`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': getCSRFToken()
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Clear input and show confirmation
+                            messageInput.value = '';
+                            showNotification("Message sent!", "success");
+                        } else {
+                            showNotification("Failed to send message", "error");
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification("An error occurred", "error");
+                    });
+                });
+            }
+        });
+        
+        function showNotification(message, type) {
+            // Create notification element if it doesn't exist
+            let notification = document.getElementById('notification');
+            if (!notification) {
+                notification = document.createElement('div');
+                notification.id = 'notification';
+                notification.className = 'notification';
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    color: white;
+                    z-index: 10000;
+                    opacity: 0;
+                    transition: opacity 0.3s;
+                `;
+                document.body.appendChild(notification);
+            }
+            
+            // Set content and style
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.style.backgroundColor = type === 'success' ? '#4CAF50' : '#f44336';
+            
+            // Show notification
+            setTimeout(() => {
+                notification.style.opacity = '1';
+            }, 10);
+            
+            // Auto-hide after delay
+            setTimeout(() => {
+                notification.style.opacity = '0';
+            }, 3000);
+        }
+
+        function loadStory(index) {
+            if (index < 0 || index >= stories.length) {
+                window.history.back();
+                return;
+            }
+
+            currentStoryIndex = index;
+            const story = stories[index];
+            const storyContent = document.getElementById('story-content');
+            storyContent.innerHTML = '';
+
+            // Update story form data-story-id
+            const messageForm = document.getElementById('story-message-form');
+            if (messageForm) {
+                messageForm.setAttribute('data-story-id', story.id);
+            }
+
+            if (story.video) {
+                storyContent.innerHTML = `
+                    <video class="story-media" autoplay controls>
+                        <source src="${story.video}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                `;
+            } else if (story.image) {
+                storyContent.innerHTML = `
+                    <img class="story-media" src="${story.image}" alt="Story">
+                `;
+            }
+
+            // Load caption
+            document.getElementById('story-caption').textContent = story.caption;
+            
+            // Load poll if exists
+            const pollContainer = document.getElementById('poll-container');
+            if (story.hasPoll && story.poll) {
+                pollContainer.style.display = 'block';
+                const pollQuestion = pollContainer.querySelector('.poll-question');
+                const pollOptions = pollContainer.querySelectorAll('.poll-option');
+                const pollResults = pollContainer.querySelector('#poll-results');
+                
+                pollQuestion.textContent = story.poll.question;
+                
+                story.poll.options.forEach((option, i) => {
+                    if (pollOptions[i]) {
+                        pollOptions[i].textContent = option.text;
+                        pollOptions[i].style.display = option.voted ? 'none' : 'block';
+                    }
+                });
+                
+                if (story.poll.options.some(opt => opt.voted)) {
+                    showPollResults();
+                } else {
+                    pollResults.style.display = 'none';
+                }
+            } else {
+                pollContainer.style.display = 'none';
+            }
+
+            updateProgressBars();
+            startProgressTimer();
+            markStoryAsViewed();
+        }
+
+        function updateProgressBars() {
+            const progressBars = document.getElementById('progress-bars');
+            progressBars.innerHTML = '';
+
+            stories.forEach((story, index) => {
+                const bar = document.createElement('div');
+                bar.className = 'progress-bar';
+                bar.innerHTML = `<div class="progress-fill" id="progress-${index}"></div>`;
+
+                if (index < currentStoryIndex) {
+                    bar.querySelector('.progress-fill').style.width = '100%';
+                } else if (index === currentStoryIndex) {
+                    bar.querySelector('.progress-fill').style.width = story.viewed ? '100%' : '0%';
+                }
+
+                progressBars.appendChild(bar);
+            });
+        }
+
+        function startProgressTimer() {
+            clearInterval(progressInterval);
+            
+            // Don't start timer if viewers list is open
+            if (document.getElementById('viewers-list').classList.contains('active')) {
+                return;
+            }
+            
+            // Don't start timer if emoji picker is open
+            if (document.getElementById('emoji-picker').classList.contains('active')) {
+                return;
+            }
+            
+            // Don't start timer if reply input is focused
+            if (document.activeElement === document.getElementById('reply-input')) {
+                return;
+            }
+            
+            const currentProgress = document.getElementById(`progress-${currentStoryIndex}`);
+            const story = stories[currentStoryIndex];
+            const duration = story.duration;
+            
+            // Get current width to continue from where we left off
+            const currentWidth = parseFloat(currentProgress.style.width || '0');
+            const remainingProgress = 100 - currentWidth;
+            const remainingTime = (remainingProgress / 100) * duration;
+            const startTime = Date.now() - (currentWidth / 100) * duration;
+            
+            progressInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration * 100, 100);
+                currentProgress.style.width = `${progress}%`;
+
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    nextStory();
+                }
+            }, 50);
+        }
+
+        function nextStory() {
+            clearInterval(progressInterval);
+            loadStory(currentStoryIndex + 1);
+        }
+
+        function prevStory() {
+            clearInterval(progressInterval);
+            loadStory(currentStoryIndex - 1);
+        }
+
+        // Enhanced delete story function
+       function deleteStory(storyId) {
+    if (confirm("Are you sure you want to delete this story?")) {
+        fetch(`/delete_story/${storyId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            
+            // Log the actual response text before parsing
+            return response.text().then(text => {
+                console.log('Raw response:', text);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('Failed to parse JSON:', text);
+                    throw new Error('Server returned invalid JSON');
+                }
+            });
+        })
+        .then(data => {
+            // Your success handling...
+        })
+        .catch(error => {
+            console.error('Error details:', error);
+            showNotification("Error deleting story: " + error.message, "error");
+        });
+    }
+}
+        function markStoryAsViewed() {
+            const story = stories[currentStoryIndex];
+            if (!story.viewed) {
+                fetch(`/mark_story_viewed/${story.id}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        story.viewed = true;
+                        updateProgressBars();
+                    }
+                })
+                .catch(error => console.error('Error marking story as viewed:', error));
+            }
+        }
+
+        function showViewersList() {
+            const storyId = stories[currentStoryIndex].id;
+            fetch(`/story_viewers/${storyId}/`)
+                .then(res => {
+                    if (!res.ok) throw new Error("Failed to load viewers");
+                    return res.json();
+                })
+                .then(data => {
+                    const viewerContainer = document.getElementById('viewer-names');
+                    viewerContainer.innerHTML = '';
+                    if (data.viewers.length === 0) {
+                        viewerContainer.innerHTML = '<div class="viewer-name">No viewers yet.</div>';
+                    } else {
+                        data.viewers.forEach(viewer => {
+                            viewerContainer.innerHTML += `<div class="viewer-name">${viewer}</div>`;
+                        });
+                    }
+                    document.getElementById('viewers-list').classList.add('active');
+                })
+                .catch(err => {
+                    console.error(err);
+                });
+        }
+
+        
+        function hideViewersList() {
+            document.getElementById('viewers-list').classList.remove('active');
+            // Resume progress timer when closing viewers list
+            startProgressTimer();
+        }
+
+        function toggleEmojiPicker() {
+            const picker = document.getElementById('emoji-picker');
+            picker.classList.toggle('active');
+            
+            if (picker.classList.contains('active')) {
+                clearInterval(progressInterval);
+            } else {
+                startProgressTimer();
+            }
+        }
+
+        function addReaction(emoji) {
+            const story = stories[currentStoryIndex];
+            const container = document.getElementById('reaction-container');
+            
+            // Create reaction element
+            const reaction = document.createElement('div');
+            reaction.className = 'reaction-emoji';
+            reaction.textContent = emoji;
+            container.appendChild(reaction);
+            
+            // Remove after animation
+            setTimeout(() => {
+                reaction.remove();
+            }, 2000);
+            
+            // Send to server
+            fetch(`/add_reaction/${story.id}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ emoji }),
+                credentials: 'include'
+            })
+            .catch(error => console.error('Error adding reaction:', error));
+            
+            // Hide picker
+            document.getElementById('emoji-picker').classList.remove('active');
+            
+            // Resume timer
+            startProgressTimer();
+        }
+
+        function sendLike() {
+            clearTimeout(likeTimeout);
+            addReaction('❤️');
+            
+            // Double tap detection
+            tapCount++;
+            if (tapCount === 2) {
+                addReaction('❤️');
+                tapCount = 0;
+            }
+            
+            likeTimeout = setTimeout(() => {
+                tapCount = 0;
+            }, 300);
+        }
+
+        function sendReply() {
+            const input = document.getElementById('reply-input');
+            const message = input.value.trim();
+            if (message) {
+                const story = stories[currentStoryIndex];
+                
+                fetch(`/send_reply/${story.id}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message }),
+                    credentials: 'include'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        input.value = '';
+                        showNotification('Message sent!', 'success');
+                    }
+                })
+                .catch(error => console.error('Error sending reply:', error));
+            }
+        }
+
+        function shareStory() {
+            const story = stories[currentStoryIndex];
+            if (navigator.share) {
+                navigator.share({
+                    title: `${story.user}'s Story`,
+                    text: 'Check out this story!',
+                    url: window.location.href,
+                })
+                .catch(error => console.log('Error sharing:', error));
+            } else {
+                // Fallback for browsers that don't support Web Share API
+                prompt('Copy this link to share:', window.location.href);
+            }
+        }
+
+        function votePoll(optionIndex) {
+            const story = stories[currentStoryIndex];
+            if (!story.poll || story.poll.options[optionIndex].voted) return;
+            
+            fetch(`/vote_poll/${story.id}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ option_index: optionIndex }),
+                credentials: 'include'
+            })
+            .then(response => {
+                if (response.ok) {
+                    story.poll.options[optionIndex].voted = true;
+                    showPollResults();
+                }
+            })
+            .catch(error => console.error('Error voting:', error));
+        }
+
+        function showPollResults() {
+            const story = stories[currentStoryIndex];
+            const pollContainer = document.getElementById('poll-container');
+            const pollOptions = pollContainer.querySelectorAll('.poll-option');
+            const pollResults = pollContainer.querySelector('#poll-results');
+            
+            // Hide voting options
+            pollOptions.forEach(opt => opt.style.display = 'none');
+            
+            // Calculate total votes
+            const totalVotes = story.poll.options.reduce((sum, opt) => sum + opt.votes, 0);
+            
+            // Show results
+            story.poll.options.forEach((option, i) => {
+                const percentage = totalVotes > 0 ? Math.round((option.votes / totalVotes) * 100) : 0;
+                document.getElementById(`poll-result-${i+1}`).textContent = `${percentage}%`;
+                document.getElementById(`poll-bar-${i+1}`).style.width = `${percentage}%`;
+            });
+            
+            pollResults.style.display = 'block';
+        }
+
+        function getCSRFToken() {
+            return document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+        }
+
+        // Event listeners for progress pause/resume
+        document.getElementById('reply-input').addEventListener('focus', () => {
+            clearInterval(progressInterval);
+        });
+
+        document.getElementById('reply-input').addEventListener('blur', () => {
+            startProgressTimer();
+        });
+
+        // Touch and click handlers
+        const storyContainer = document.querySelector('.story-container');
+
+        storyContainer.addEventListener('mousedown', (e) => {
+            if (!e.target.closest('.action-btn') && 
+                !e.target.closest('.reply-input') && 
+                !e.target.closest('.send-reply') &&
+                !e.target.closest('.close-btn') &&
+                !e.target.closest('.navigation') &&
+                !e.target.closest('.viewers-btn') &&
+                !e.target.closest('.delete-btn')) {
+                clearInterval(progressInterval);
+            }
+        });
+
+        storyContainer.addEventListener('mouseup', (e) => {
+            if (!e.target.closest('.action-btn') && 
+                !e.target.closest('.reply-input') && 
+                !e.target.closest('.send-reply') &&
+                !e.target.closest('.close-btn') &&
+                !e.target.closest('.navigation') &&
+                !e.target.closest('.viewers-btn') &&
+                !e.target.closest('.delete-btn')) {
+                startProgressTimer();
+            }
+        });
+
+        // Handle double tap for like
+        document.getElementById('story-content').addEventListener('click', (e) => {
+            clearTimeout(tapTimeout);
+            tapCount++;
+            
+            if (tapCount === 2) {
+                sendLike();
+                // Visual feedback for double tap
+                const heart = document.createElement('div');
+                heart.textContent = '❤️';
+                heart.style.position = 'absolute';
+                heart.style.left = `${e.clientX - 20}px`;
+                heart.style.top = `${e.clientY - 20}px`;
+                heart.style.fontSize = '40px';
+                heart.style.animation = 'scaleUp 0.5s forwards';
+                heart.style.pointerEvents = 'none';
+                heart.style.zIndex = '9999';
+                document.body.appendChild(heart);
+                setTimeout(() => heart.remove(), 500);
+            }
+            
+            tapTimeout = setTimeout(() => {
+                tapCount = 0;
+            }, 300);
+        });
+
+        // Initialize story viewer
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStory(0);
+            
+            // Add CSS animations
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes scaleUp {
+                    from { transform: scale(0.5); opacity: 0; }
+                    to { transform: scale(1.5); opacity: 1; }
+                }
+                
+                .viewers-list {
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    background: rgba(0, 0, 0, 0.9);
+                    color: white;
+                    padding: 20px;
+                    transform: translateY(100%);
+                    transition: transform 0.3s ease;
+                    max-height: 50vh;
+                    overflow-y: auto;
+                    z-index: 1000;
+                }
+                
+                .viewers-list.active {
+                    transform: translateY(0);
+                }
+                
+                .viewers-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 15px;
+                    border-bottom: 1px solid #333;
+                    padding-bottom: 10px;
+                }
+                
+                .viewer-item {
+                    display: flex;
+                    align-items: center;
+                    padding: 10px 0;
+                    border-bottom: 1px solid #333;
+                }
+                
+                .viewer-pic {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 50%;
+                    margin-right: 10px;
+                    object-fit: cover;
+                }
+                
+                .viewer-info {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                }
+                
+                .viewer-name {
+                    font-weight: bold;
+                    margin-bottom: 2px;
+                }
+                
+                .viewer-time {
+                    font-size: 12px;
+                    color: #888;
+                    margin-bottom: 2px;
+                }
+                
+                .viewer-reaction {
+                    font-size: 16px;
+                    margin-top: 2px;
+                }
+                
+                .close-viewers {
+                    cursor: pointer;
+                    font-size: 20px;
+                    color: #888;
+                }
+                
+                .close-viewers:hover {
+                    color: white;
+                }
+                
+                .no-viewers {
+                    text-align: center;
+                    padding: 20px;
+                    color: #888;
+                }
+                
+                .delete-btn {
+                    background: #ff4444;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 20px;
+                    cursor: pointer;
+                    font-size: 12px;
+                }
+                
+                .delete-btn:hover {
+                    background: #cc0000;
+                }
+            `;
+            document.head.appendChild(style);
+        });
+    </script>
+</body>
+</html>
