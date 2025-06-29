@@ -278,7 +278,8 @@ class PendingOTP(models.Model):
     username = models.CharField(max_length=255, blank=True, null=True)  # Username can be blank or null
     password = models.CharField(max_length=255, blank=True, null=True)  # Password can be blank or null
     def __str__(self):
-        return self.email
+      return f"{self.email} - OTP: {self.otp}"
+
     
 from django.db import models
 from django.contrib.auth.models import User  # Make sure this import exists!
@@ -295,9 +296,9 @@ class SearchHistory(models.Model):
 
 class LoginHistory(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    session_key = models.CharField(max_length=100)
+    session_key = models.CharField(max_length=100, null=True, blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
-    Login_time = models.DateTimeField(auto_now_add=True)
+    login_time = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.login_time}"
