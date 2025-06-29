@@ -132,5 +132,5 @@ LOGIN_REDIRECT_URL = 'loginsuccess'
 # Redirect to the login page after logout
 LOGOUT_REDIRECT_URL = 'loginform'
 
-# Twilio API Credentials (Make sure to use environment variables in production)
+
 
